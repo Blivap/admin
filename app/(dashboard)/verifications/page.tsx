@@ -15,10 +15,14 @@ const defaultParams = { page: 1, pageSize: 20, status: "pending" as const };
 export default async function VerificationsPage() {
   const queryClient = new QueryClient();
 
-  await queryClient.prefetchQuery({
-    queryKey: queryKeys.verifications.list(defaultParams),
-    queryFn: () => listVerifications(defaultParams),
-  });
+  try {
+    await queryClient.prefetchQuery({
+      queryKey: queryKeys.verifications.list(defaultParams),
+      queryFn: () => listVerifications(defaultParams),
+    });
+  } catch {
+    // Client table retries via useQuery.
+  }
 
   return (
     <>

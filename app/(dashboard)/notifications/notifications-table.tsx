@@ -91,18 +91,20 @@ export function NotificationsTable() {
     queryFn: () => listNotifications(params),
   });
 
+  const detailId = panel?.type === "detail" ? panel.notification.id : "";
+  const statsId = panel?.type === "stats" ? panel.notification.id : "";
+
   const detailQuery = useQuery({
-    queryKey: queryKeys.notifications.detail(panel?.type === "detail" ? panel.notification.id : ""),
-    queryFn: () => getNotification(panel!.type === "detail" ? panel.notification.id : ""),
-    enabled: panel?.type === "detail",
+    queryKey: queryKeys.notifications.detail(detailId),
+    queryFn: () => getNotification(detailId),
+    enabled: Boolean(detailId),
   });
 
   const statsQuery = useQuery({
-    queryKey: queryKeys.notifications.stats(panel?.type === "stats" ? panel.notification.id : ""),
-    queryFn: () => getNotificationStats(panel!.type === "stats" ? panel.notification.id : ""),
-    enabled: panel?.type === "stats",
+    queryKey: queryKeys.notifications.stats(statsId),
+    queryFn: () => getNotificationStats(statsId),
+    enabled: Boolean(statsId),
   });
-
   const broadcastForm = useForm<BroadcastFormValues>({
     resolver: zodResolver(broadcastSchema),
     defaultValues: {

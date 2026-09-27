@@ -88,12 +88,14 @@ export function RequestsTable() {
     queryFn: () => listRequests(params),
   });
 
-  const matchingLogQuery = useQuery({
-    queryKey: queryKeys.requests.matchingLog(panel?.request.id ?? ""),
-    queryFn: () => getMatchingLog(panel!.request.id),
-    enabled: panel?.type === "log",
-  });
+  const matchingLogRequestId =
+    panel?.type === "log" ? panel.request.id : "";
 
+  const matchingLogQuery = useQuery({
+    queryKey: queryKeys.requests.matchingLog(matchingLogRequestId),
+    queryFn: () => getMatchingLog(matchingLogRequestId),
+    enabled: Boolean(matchingLogRequestId),
+  });
   const assignForm = useForm<AssignFormValues>({
     resolver: zodResolver(assignSchema),
     defaultValues: { donorId: "", note: "" },

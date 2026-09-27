@@ -15,10 +15,14 @@ const defaultParams = { page: 1, pageSize: 20 };
 export default async function NotificationsPage() {
   const queryClient = new QueryClient();
 
-  await queryClient.prefetchQuery({
-    queryKey: queryKeys.notifications.list(defaultParams),
-    queryFn: () => listNotifications(defaultParams),
-  });
+  try {
+    await queryClient.prefetchQuery({
+      queryKey: queryKeys.notifications.list(defaultParams),
+      queryFn: () => listNotifications(defaultParams),
+    });
+  } catch {
+    // Client table retries via useQuery.
+  }
 
   return (
     <>

@@ -15,10 +15,14 @@ const defaultParams = { page: 1, pageSize: 20 };
 export default async function RequestsPage() {
   const queryClient = new QueryClient();
 
-  await queryClient.prefetchQuery({
-    queryKey: queryKeys.requests.list(defaultParams),
-    queryFn: () => listRequests(defaultParams),
-  });
+  try {
+    await queryClient.prefetchQuery({
+      queryKey: queryKeys.requests.list(defaultParams),
+      queryFn: () => listRequests(defaultParams),
+    });
+  } catch {
+    // Client table retries via useQuery.
+  }
 
   return (
     <>

@@ -19,10 +19,14 @@ const defaultParams = {
 export default async function AnalyticsPage() {
   const queryClient = new QueryClient();
 
-  await queryClient.prefetchQuery({
-    queryKey: queryKeys.analytics.dashboard(defaultParams),
-    queryFn: () => getAnalytics(defaultParams),
-  });
+  try {
+    await queryClient.prefetchQuery({
+      queryKey: queryKeys.analytics.dashboard(defaultParams),
+      queryFn: () => getAnalytics(defaultParams),
+    });
+  } catch {
+    // Client dashboard retries via useQuery.
+  }
 
   return (
     <>

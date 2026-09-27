@@ -15,10 +15,14 @@ const defaultParams = { page: 1, pageSize: 20 };
 export default async function UsersPage() {
   const queryClient = new QueryClient();
 
-  await queryClient.prefetchQuery({
-    queryKey: queryKeys.users.list(defaultParams),
-    queryFn: () => listUsers(defaultParams),
-  });
+  try {
+    await queryClient.prefetchQuery({
+      queryKey: queryKeys.users.list(defaultParams),
+      queryFn: () => listUsers(defaultParams),
+    });
+  } catch {
+    // Client table retries via useQuery.
+  }
 
   return (
     <>
