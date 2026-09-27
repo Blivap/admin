@@ -6,11 +6,7 @@ import {
   useReactTable,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useCallback, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,36 +14,31 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
+import { QueryError } from "@/components/ui/query-error";
 import { Select } from "@/components/ui/select";
+import {
+  DetailPanelSkeleton,
+  TableSkeleton,
+} from "@/components/ui/skeletons";
 import { TableShell } from "@/components/ui/table-shell";
 import { Textarea } from "@/components/ui/textarea";
+import { useUsers } from "@/hooks/use-users";
 import { ApiRequestError } from "@/lib/api/client";
-import { listUsers, suspendUser, unsuspendUser } from "@/lib/api/users";
-import { queryKeys } from "@/lib/query-keys";
+import { BLOOD_TYPES } from "@/lib/constants";
 import { formatDate, fullName } from "@/lib/utils";
+import { Users } from "lucide-react";
 import type {
   AdminUserListItem,
   BloodType,
+  PlatformUserRole,
   UserStatus,
-  UsersListParams,
 } from "@/types";
 
-const BLOOD_TYPES: BloodType[] = [
-  "O-",
-  "O+",
-  "A-",
-  "A+",
-  "B-",
-  "B+",
-  "AB-",
-  "AB+",
-];
-
-const suspendSchema = z.object({
-  reason: z.string().min(5, "Provide a reason (at least 5 characters)"),
-});
-
-type SuspendFormValues = z.infer<typeof suspendSchema>;
+type Panel =
+  | { type: "detail"; userId: string }
+  | { type: "suspend"; user: AdminUserListItem }
+  | { type: "merge"; user: AdminUserListItem }
+  | null;
 
 function statusTone(status: UserStatus) {
   switch (status) {
@@ -61,45 +52,28 @@ function statusTone(status: UserStatus) {
 }
 
 export function UsersTable() {
-  const queryClient = useQueryClient();
-  const [params, setParams] = useState<UsersListParams>({
-    page: 1,
-    pageSize: 20,
-    query: "",
-    bloodType: "",
-    status: "",
-  });
-  const [draftQuery, setDraftQuery] = useState("");
-  const [suspendTarget, setSuspendTarget] = useState<AdminUserListItem | null>(
-    null,
-  );
+  const [panel, setPanel] = useState<Panel>(null);
+  const closePanel = useCallback(() => setPanel(null), []);
 
-  const listQuery = useQuery({
-    queryKey: queryKeys.users.list(params),
-    queryFn: () => listUsers(params),
-  });
-
-  const suspendForm = useForm<SuspendFormValues>({
-    resolver: zodResolver(suspendSchema),
-    defaultValues: { reason: "" },
-  });
-
-  const suspendMutation = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
-      suspendUser(id, { reason }),
-    onSuccess: async () => {
-      setSuspendTarget(null);
-      suspendForm.reset();
-      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-    },
-  });
-
-  const unsuspendMutation = useMutation({
-    mutationFn: (id: string) => unsuspendUser(id),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-    },
-  });
+  const detailUserId = panel?.type === "detail" ? panel.userId : "";
+  const {
+    params,
+    setParams,
+    draftQuery,
+    setDraftQuery,
+    draftLocation,
+    setDraftLocation,
+    applyFilters,
+    listQuery,
+    detailQuery,
+    suspendForm,
+    mergeForm,
+    suspendMutation,
+    reactivateMutation,
+    verifyMutation,
+    resetPasswordMutation,
+    mergeMutation,
+  } = useUsers({ detailUserId, onActionSuccess: closePanel });
 
   const columns = useMemo<ColumnDef<AdminUserListItem>[]>(
     () => [
@@ -107,25 +81,40 @@ export function UsersTable() {
         id: "name",
         header: "Name",
         cell: ({ row }) => (
-          <div>
-            <p className="font-medium">
+          <button
+            type="button"
+            className="text-left"
+            onClick={() => setPanel({ type: "detail", userId: row.original.id })}
+          >
+            <p className="font-medium text-[var(--brand)] hover:underline">
               {fullName(row.original.firstname, row.original.lastname)}
             </p>
             <p className="text-xs text-[var(--ink-muted)]">
               {row.original.email}
             </p>
-          </div>
+          </button>
         ),
       },
       {
         accessorKey: "bloodType",
         header: "Blood",
-        cell: ({ getValue }) => (getValue<string>() ? getValue<string>() : "—"),
+        cell: ({ getValue }) => getValue<string>() || "—",
       },
       {
-        id: "roles",
-        header: "Roles",
-        cell: ({ row }) => row.original.roles.join(", "),
+        accessorKey: "role",
+        header: "Role",
+        cell: ({ getValue }) => {
+          const role = getValue<string>();
+          return role && role !== "none" ? role : "—";
+        },
+      },
+      {
+        id: "location",
+        header: "Location",
+        cell: ({ row }) =>
+          [row.original.city, row.original.state, row.original.region]
+            .filter(Boolean)
+            .join(", ") || "—",
       },
       {
         accessorKey: "status",
@@ -138,10 +127,10 @@ export function UsersTable() {
       },
       {
         id: "nin",
-        header: "NIN",
+        header: "Verified",
         cell: ({ row }) => (
           <Badge tone={row.original.ninVerified ? "success" : "warning"}>
-            {row.original.ninVerified ? "Verified" : "Unverified"}
+            {row.original.ninVerified ? "Yes" : "No"}
           </Badge>
         ),
       },
@@ -155,34 +144,42 @@ export function UsersTable() {
         header: "Actions",
         cell: ({ row }) => {
           const user = row.original;
-          if (user.status === "suspended") {
-            return (
+          return (
+            <div className="flex flex-wrap gap-1">
               <Button
                 size="sm"
                 variant="secondary"
-                disabled={unsuspendMutation.isPending}
-                onClick={() => unsuspendMutation.mutate(user.id)}
+                onClick={() => setPanel({ type: "detail", userId: user.id })}
               >
-                Unsuspend
+                View
               </Button>
-            );
-          }
-          return (
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={() => {
-                setSuspendTarget(user);
-                suspendForm.reset({ reason: "" });
-              }}
-            >
-              Suspend
-            </Button>
+              {user.status === "suspended" ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={reactivateMutation.isPending}
+                  onClick={() => reactivateMutation.mutate(user.id)}
+                >
+                  Reactivate
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => {
+                    suspendForm.reset({ reason: "" });
+                    setPanel({ type: "suspend", user });
+                  }}
+                >
+                  Suspend
+                </Button>
+              )}
+            </div>
           );
         },
       },
     ],
-    [suspendForm, unsuspendMutation],
+    [reactivateMutation, suspendForm],
   );
 
   const table = useReactTable({
@@ -192,38 +189,24 @@ export function UsersTable() {
   });
 
   const meta = listQuery.data?.meta;
-  const actionError =
-    suspendMutation.error instanceof ApiRequestError
-      ? suspendMutation.error.message
-      : unsuspendMutation.error instanceof ApiRequestError
-        ? unsuspendMutation.error.message
-        : null;
 
   return (
     <>
       <TableShell
         toolbar={
           <>
-            <div className="min-w-[200px] flex-1">
+            <div className="min-w-[160px] flex-1">
               <Label htmlFor="user-query">Search</Label>
               <Input
                 id="user-query"
                 placeholder="Name, email, phone…"
                 value={draftQuery}
                 onChange={(e) => setDraftQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    setParams((prev) => ({
-                      ...prev,
-                      query: draftQuery,
-                      page: 1,
-                    }));
-                  }
-                }}
+                onKeyDown={(e) => e.key === "Enter" && applyFilters()}
               />
             </div>
-            <div className="w-full sm:w-36">
-              <Label htmlFor="blood-type">Blood type</Label>
+            <div className="w-full sm:w-28">
+              <Label htmlFor="blood-type">Blood</Label>
               <Select
                 id="blood-type"
                 value={params.bloodType ?? ""}
@@ -243,7 +226,7 @@ export function UsersTable() {
                 ))}
               </Select>
             </div>
-            <div className="w-full sm:w-36">
+            <div className="w-full sm:w-32">
               <Label htmlFor="user-status">Status</Label>
               <Select
                 id="user-status"
@@ -262,16 +245,36 @@ export function UsersTable() {
                 <option value="deactivated">Deactivated</option>
               </Select>
             </div>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                setParams((prev) => ({
-                  ...prev,
-                  query: draftQuery,
-                  page: 1,
-                }))
-              }
-            >
+            <div className="w-full sm:w-32">
+              <Label htmlFor="user-role">Role</Label>
+              <Select
+                id="user-role"
+                value={params.role ?? ""}
+                onChange={(e) =>
+                  setParams((prev) => ({
+                    ...prev,
+                    role: e.target.value as PlatformUserRole | "",
+                    page: 1,
+                  }))
+                }
+              >
+                <option value="">All</option>
+                <option value="donor">Donor</option>
+                <option value="requester">Requester</option>
+                <option value="both">Both</option>
+              </Select>
+            </div>
+            <div className="w-full sm:w-36">
+              <Label htmlFor="user-location">Location</Label>
+              <Input
+                id="user-location"
+                placeholder="City / region"
+                value={draftLocation}
+                onChange={(e) => setDraftLocation(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+              />
+            </div>
+            <Button variant="secondary" onClick={applyFilters}>
               Apply
             </Button>
           </>
@@ -287,34 +290,29 @@ export function UsersTable() {
         }
       >
         {listQuery.isLoading ? (
-          <EmptyState title="Loading users…" />
+          <TableSkeleton columns={8} rows={8} withToolbar={false} />
         ) : listQuery.isError ? (
-          <EmptyState
+          <QueryError
             title="Couldn’t load users"
-            description={
-              listQuery.error instanceof ApiRequestError
-                ? listQuery.error.message
-                : "Something went wrong."
-            }
+            error={listQuery.error}
+            onRetry={() => listQuery.refetch()}
           />
         ) : table.getRowModel().rows.length === 0 ? (
           <EmptyState
+            icon={Users}
             title="No users found"
-            description="Try adjusting search or filters."
+            description="Try adjusting filters, or check back once more people join the platform."
           />
         ) : (
           <table>
             <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id}>
-                      {header.isPlaceholder
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id}>
+                  {hg.headers.map((h) => (
+                    <th key={h.id}>
+                      {h.isPlaceholder
                         ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
+                        : flexRender(h.column.columnDef.header, h.getContext())}
                     </th>
                   ))}
                 </tr>
@@ -325,10 +323,7 @@ export function UsersTable() {
                 <tr key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
                 </tr>
@@ -338,70 +333,328 @@ export function UsersTable() {
         )}
       </TableShell>
 
-      {actionError && !suspendTarget ? (
-        <p className="mt-3 text-sm text-[var(--danger)]">{actionError}</p>
-      ) : null}
-
-      {suspendTarget ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-lg border border-[var(--border)] bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-[var(--ink)]">
-              Suspend user
-            </h2>
-            <p className="mt-1 text-sm text-[var(--ink-muted)]">
-              {fullName(suspendTarget.firstname, suspendTarget.lastname)} (
-              {suspendTarget.email}) will lose access until unsuspended. This
-              action is audit-logged server-side.
-            </p>
-            <form
-              className="mt-4 space-y-4"
-              onSubmit={suspendForm.handleSubmit((values) =>
-                suspendMutation.mutate({
-                  id: suspendTarget.id,
-                  reason: values.reason,
-                }),
-              )}
-            >
-              <div>
-                <Label htmlFor="suspend-reason">Reason</Label>
-                <Textarea
-                  id="suspend-reason"
-                  {...suspendForm.register("reason")}
+      {panel?.type === "detail" ? (
+        <Modal title="User detail" onClose={closePanel} wide>
+          {detailQuery.isLoading ? (
+            <DetailPanelSkeleton />
+          ) : detailQuery.isError ? (
+            <QueryError
+              title="Couldn’t load user"
+              error={detailQuery.error}
+              onRetry={() => detailQuery.refetch()}
+            />
+          ) : detailQuery.data ? (
+            <div className="space-y-5 text-sm">
+              {(() => {
+                const user = detailQuery.data;
+                const donationHistory = user.donationHistory ?? [];
+                const pushTokens = user.pushTokens ?? [];
+                return (
+                  <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field
+                  label="Name"
+                  value={fullName(user.firstname, user.lastname)}
                 />
-                {suspendForm.formState.errors.reason ? (
-                  <p className="mt-1 text-xs text-[var(--danger)]">
-                    {suspendForm.formState.errors.reason.message}
-                  </p>
-                ) : null}
+                <Field label="Email" value={user.email} />
+                <Field label="Phone" value={user.phonenumber || "—"} />
+                <Field label="Blood type" value={user.bloodType || "—"} />
+                <Field
+                  label="Role"
+                  value={user.role && user.role !== "none" ? user.role : "—"}
+                />
+                <Field label="Status" value={user.status} />
+                <Field
+                  label="Location"
+                  value={
+                    [user.city, user.state, user.region]
+                      .filter(Boolean)
+                      .join(", ") || "—"
+                  }
+                />
+                <Field
+                  label="Verification"
+                  value={
+                    user.ninVerified
+                      ? "NIN verified"
+                      : user.verificationStatus || "Unverified"
+                  }
+                />
               </div>
-              {suspendMutation.error instanceof ApiRequestError ? (
-                <p className="text-sm text-[var(--danger)]">
-                  {suspendMutation.error.message}
-                </p>
-              ) : null}
-              <div className="flex justify-end gap-2">
+
+              <div>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+                  Donation history
+                </h3>
+                {donationHistory.length === 0 ? (
+                  <p className="text-[var(--ink-muted)]">No donations yet.</p>
+                ) : (
+                  <div className="overflow-x-auto rounded border border-[var(--border)]">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Blood</th>
+                          <th>Facility</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {donationHistory.map((d) => (
+                          <tr key={d.id}>
+                            <td>{formatDate(d.donatedAt)}</td>
+                            <td>{d.bloodType}</td>
+                            <td>{d.facilityName || "—"}</td>
+                            <td>{d.status}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+                  Push tokens
+                </h3>
+                {pushTokens.length === 0 ? (
+                  <p className="text-[var(--ink-muted)]">No linked tokens.</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {pushTokens.map((t) => (
+                      <li
+                        key={t.id}
+                        className="rounded border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-xs"
+                      >
+                        {t.platform ? `${t.platform}: ` : ""}
+                        {t.token.slice(0, 24)}…
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2 border-t border-[var(--border)] pt-4">
+                {!user.ninVerified ? (
+                  <Button
+                    size="sm"
+                    disabled={verifyMutation.isPending}
+                    onClick={() => verifyMutation.mutate(user.id)}
+                  >
+                    Force verify
+                  </Button>
+                ) : null}
                 <Button
-                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  disabled={resetPasswordMutation.isPending}
+                  onClick={() => resetPasswordMutation.mutate(user.id)}
+                >
+                  {resetPasswordMutation.isPending
+                    ? "Sending…"
+                    : "Reset password"}
+                </Button>
+                <Button
+                  size="sm"
                   variant="secondary"
                   onClick={() => {
-                    setSuspendTarget(null);
-                    suspendForm.reset();
+                    mergeForm.reset({ targetUserId: "", reason: "" });
+                    setPanel({
+                      type: "merge",
+                      user: user as unknown as AdminUserListItem,
+                    });
                   }}
                 >
-                  Cancel
+                  Merge duplicate
                 </Button>
+                {user.status === "suspended" ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={reactivateMutation.isPending}
+                    onClick={() => reactivateMutation.mutate(user.id)}
+                  >
+                    Reactivate
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => {
+                      suspendForm.reset({ reason: "" });
+                      setPanel({
+                        type: "suspend",
+                        user: user as unknown as AdminUserListItem,
+                      });
+                    }}
+                  >
+                    Suspend
+                  </Button>
+                )}
                 <Button
-                  type="submit"
-                  variant="danger"
-                  disabled={suspendMutation.isPending}
+                  size="sm"
+                  variant="ghost"
+                  className="ml-auto"
+                  onClick={closePanel}
                 >
-                  {suspendMutation.isPending ? "Suspending…" : "Confirm suspend"}
+                  Close
                 </Button>
               </div>
-            </form>
-          </div>
-        </div>
+              {resetPasswordMutation.isSuccess ? (
+                <p className="text-sm text-emerald-700">
+                  Password reset email queued.
+                </p>
+              ) : null}
+              {resetPasswordMutation.error instanceof ApiRequestError ? (
+                <p className="text-sm text-[var(--danger)]">
+                  {resetPasswordMutation.error.message}
+                </p>
+              ) : null}
+                  </>
+                );
+              })()}
+            </div>
+          ) : null}
+        </Modal>
+      ) : null}
+
+      {panel?.type === "suspend" ? (
+        <Modal title="Suspend user" onClose={closePanel}>
+          <p className="text-sm text-[var(--ink-muted)]">
+            {fullName(panel.user.firstname, panel.user.lastname)} (
+            {panel.user.email})
+          </p>
+          <form
+            className="mt-4 space-y-4"
+            onSubmit={suspendForm.handleSubmit((values) =>
+              suspendMutation.mutate({
+                id: panel.user.id,
+                reason: values.reason,
+              }),
+            )}
+          >
+            <div>
+              <Label htmlFor="suspend-reason">Reason</Label>
+              <Textarea
+                id="suspend-reason"
+                {...suspendForm.register("reason")}
+              />
+              {suspendForm.formState.errors.reason ? (
+                <p className="mt-1 text-xs text-[var(--danger)]">
+                  {suspendForm.formState.errors.reason.message}
+                </p>
+              ) : null}
+            </div>
+            {suspendMutation.error instanceof ApiRequestError ? (
+              <p className="text-sm text-[var(--danger)]">
+                {suspendMutation.error.message}
+              </p>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={closePanel}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="danger"
+                disabled={suspendMutation.isPending}
+              >
+                {suspendMutation.isPending ? "Suspending…" : "Confirm"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
+
+      {panel?.type === "merge" ? (
+        <Modal title="Merge duplicate accounts" onClose={closePanel}>
+          <p className="text-sm text-[var(--ink-muted)]">
+            Merge{" "}
+            <strong>
+              {fullName(panel.user.firstname, panel.user.lastname)}
+            </strong>{" "}
+            into another account. Source account will be deactivated.
+          </p>
+          <form
+            className="mt-4 space-y-4"
+            onSubmit={mergeForm.handleSubmit((values) =>
+              mergeMutation.mutate({
+                sourceId: panel.user.id,
+                values,
+              }),
+            )}
+          >
+            <div>
+              <Label htmlFor="target-id">Target user ID</Label>
+              <Input id="target-id" {...mergeForm.register("targetUserId")} />
+              {mergeForm.formState.errors.targetUserId ? (
+                <p className="mt-1 text-xs text-[var(--danger)]">
+                  {mergeForm.formState.errors.targetUserId.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <Label htmlFor="merge-reason">Reason</Label>
+              <Textarea id="merge-reason" {...mergeForm.register("reason")} />
+              {mergeForm.formState.errors.reason ? (
+                <p className="mt-1 text-xs text-[var(--danger)]">
+                  {mergeForm.formState.errors.reason.message}
+                </p>
+              ) : null}
+            </div>
+            {mergeMutation.error instanceof ApiRequestError ? (
+              <p className="text-sm text-[var(--danger)]">
+                {mergeMutation.error.message}
+              </p>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={closePanel}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={mergeMutation.isPending}>
+                {mergeMutation.isPending ? "Merging…" : "Merge"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
       ) : null}
     </>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-[var(--ink-muted)]">{label}</p>
+      <p className="font-medium text-[var(--ink)]">{value}</p>
+    </div>
+  );
+}
+
+function Modal({
+  title,
+  onClose,
+  children,
+  wide,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-[var(--border)] bg-white p-6 shadow-xl ${wide ? "max-w-3xl" : "max-w-md"}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold text-[var(--ink)]">{title}</h2>
+        <div className="mt-4">{children}</div>
+      </div>
+    </div>
   );
 }

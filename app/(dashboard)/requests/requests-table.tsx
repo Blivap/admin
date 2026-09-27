@@ -6,11 +6,7 @@ import {
   useReactTable,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useCallback, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,48 +17,33 @@ import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import { TableShell } from "@/components/ui/table-shell";
 import { Textarea } from "@/components/ui/textarea";
+import { useRequests } from "@/hooks/use-requests";
 import { ApiRequestError } from "@/lib/api/client";
-import {
-  assignDonor,
-  closeRequest,
-  escalateRequest,
-  getMatchingLog,
-  listRequests,
-} from "@/lib/api/requests";
 import { BLOOD_TYPES } from "@/lib/constants";
-import { queryKeys } from "@/lib/query-keys";
 import { formatDate } from "@/lib/utils";
 import type {
   AdminBloodRequestListItem,
   BloodRequestStatus,
   BloodType,
-  RequestsListParams,
+  UrgencyLevel,
 } from "@/types";
 
-const assignSchema = z.object({
-  donorId: z.string().min(1, "Donor ID is required"),
-  note: z.string().optional(),
-});
-
-const escalateSchema = z.object({
-  reason: z.string().min(5, "Provide a reason (at least 5 characters)"),
-});
-
-type AssignFormValues = z.infer<typeof assignSchema>;
-type EscalateFormValues = z.infer<typeof escalateSchema>;
-
 type Panel =
+  | { type: "detail"; request: AdminBloodRequestListItem }
   | { type: "assign"; request: AdminBloodRequestListItem }
   | { type: "escalate"; request: AdminBloodRequestListItem }
-  | { type: "log"; request: AdminBloodRequestListItem }
+  | { type: "matches"; request: AdminBloodRequestListItem }
+  | { type: "rebroadcast"; request: AdminBloodRequestListItem }
   | null;
 
 function statusTone(status: BloodRequestStatus) {
   switch (status) {
-    case "open":
+    case "active":
       return "info" as const;
     case "matched":
+    case "fulfilled":
       return "success" as const;
+    case "expired":
     case "cancelled":
       return "danger" as const;
     default:
@@ -71,78 +52,35 @@ function statusTone(status: BloodRequestStatus) {
 }
 
 export function RequestsTable() {
-  const queryClient = useQueryClient();
-  const [params, setParams] = useState<RequestsListParams>({
-    page: 1,
-    pageSize: 20,
-    query: "",
-    bloodType: "",
-    status: "",
-    urgent: "",
-  });
-  const [draftQuery, setDraftQuery] = useState("");
   const [panel, setPanel] = useState<Panel>(null);
+  const closePanel = useCallback(() => setPanel(null), []);
 
-  const listQuery = useQuery({
-    queryKey: queryKeys.requests.list(params),
-    queryFn: () => listRequests(params),
-  });
+  const detailRequestId = panel?.type === "detail" ? panel.request.id : "";
+  const matchesRequestId = panel?.type === "matches" ? panel.request.id : "";
 
-  const matchingLogRequestId =
-    panel?.type === "log" ? panel.request.id : "";
-
-  const matchingLogQuery = useQuery({
-    queryKey: queryKeys.requests.matchingLog(matchingLogRequestId),
-    queryFn: () => getMatchingLog(matchingLogRequestId),
-    enabled: Boolean(matchingLogRequestId),
-  });
-  const assignForm = useForm<AssignFormValues>({
-    resolver: zodResolver(assignSchema),
-    defaultValues: { donorId: "", note: "" },
-  });
-
-  const escalateForm = useForm<EscalateFormValues>({
-    resolver: zodResolver(escalateSchema),
-    defaultValues: { reason: "" },
-  });
-
-  const invalidate = async () => {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.requests.all });
-  };
-
-  const assignMutation = useMutation({
-    mutationFn: ({
-      id,
-      values,
-    }: {
-      id: string;
-      values: AssignFormValues;
-    }) => assignDonor(id, values),
-    onSuccess: async () => {
-      setPanel(null);
-      assignForm.reset();
-      await invalidate();
-    },
-  });
-
-  const escalateMutation = useMutation({
-    mutationFn: ({
-      id,
-      values,
-    }: {
-      id: string;
-      values: EscalateFormValues;
-    }) => escalateRequest(id, values),
-    onSuccess: async () => {
-      setPanel(null);
-      escalateForm.reset();
-      await invalidate();
-    },
-  });
-
-  const closeMutation = useMutation({
-    mutationFn: (id: string) => closeRequest(id),
-    onSuccess: invalidate,
+  const {
+    params,
+    setParams,
+    draftQuery,
+    setDraftQuery,
+    draftRegion,
+    setDraftRegion,
+    applyFilters,
+    listQuery,
+    detailQuery,
+    matchesQuery,
+    assignForm,
+    escalateForm,
+    rebroadcastForm,
+    assignMutation,
+    escalateMutation,
+    rematchMutation,
+    statusMutation,
+    rebroadcastMutation,
+  } = useRequests({
+    detailRequestId,
+    matchesRequestId,
+    onActionSuccess: closePanel,
   });
 
   const columns = useMemo<ColumnDef<AdminBloodRequestListItem>[]>(
@@ -151,40 +89,51 @@ export function RequestsTable() {
         id: "request",
         header: "Request",
         cell: ({ row }) => (
-          <div>
-            <p className="font-medium">{row.original.requesterName}</p>
+          <button
+            type="button"
+            className="text-left"
+            onClick={() => setPanel({ type: "detail", request: row.original })}
+          >
+            <p className="font-medium text-[var(--brand)] hover:underline">
+              {row.original.requesterName}
+            </p>
             <p className="text-xs text-[var(--ink-muted)]">
               {row.original.id.slice(0, 8)}…
             </p>
-          </div>
+          </button>
         ),
       },
-      {
-        accessorKey: "neededBloodType",
-        header: "Blood",
-      },
+      { accessorKey: "neededBloodType", header: "Blood" },
       {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <Badge tone={statusTone(row.original.status)}>
-              {row.original.status}
-            </Badge>
-            {row.original.urgent ? <Badge tone="danger">Urgent</Badge> : null}
-          </div>
+          <Badge tone={statusTone(row.original.status)}>
+            {row.original.status}
+          </Badge>
         ),
       },
       {
-        id: "location",
-        header: "Location",
+        accessorKey: "urgency",
+        header: "Urgency",
+        cell: ({ row }) => (
+          <Badge
+            tone={row.original.urgency === "normal" ? "neutral" : "danger"}
+          >
+            {row.original.urgency}
+          </Badge>
+        ),
+      },
+      {
+        id: "region",
+        header: "Region",
         cell: ({ row }) =>
-          [row.original.city, row.original.state].filter(Boolean).join(", ") ||
+          [row.original.city, row.original.region].filter(Boolean).join(", ") ||
           "—",
       },
       {
         id: "matched",
-        header: "Matched donor",
+        header: "Donor",
         cell: ({ row }) => row.original.matchedDonorName ?? "—",
       },
       {
@@ -198,17 +147,15 @@ export function RequestsTable() {
         cell: ({ row }) => {
           const request = row.original;
           return (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1">
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={() => {
-                  setPanel({ type: "log", request });
-                }}
+                onClick={() => setPanel({ type: "matches", request })}
               >
-                Log
+                Matches
               </Button>
-              {request.status === "open" ? (
+              {request.status === "active" ? (
                 <>
                   <Button
                     size="sm"
@@ -223,7 +170,7 @@ export function RequestsTable() {
                     size="sm"
                     variant="secondary"
                     onClick={() => {
-                      escalateForm.reset({ reason: "" });
+                      escalateForm.reset({});
                       setPanel({ type: "escalate", request });
                     }}
                   >
@@ -231,11 +178,34 @@ export function RequestsTable() {
                   </Button>
                   <Button
                     size="sm"
-                    variant="danger"
-                    disabled={closeMutation.isPending}
-                    onClick={() => closeMutation.mutate(request.id)}
+                    variant="secondary"
+                    disabled={rematchMutation.isPending}
+                    onClick={() => rematchMutation.mutate(request.id)}
                   >
-                    Close
+                    Rematch
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      rebroadcastForm.reset({ mode: "same" });
+                      setPanel({ type: "rebroadcast", request });
+                    }}
+                  >
+                    Rebroadcast
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    disabled={statusMutation.isPending}
+                    onClick={() =>
+                      statusMutation.mutate({
+                        id: request.id,
+                        status: "cancelled",
+                      })
+                    }
+                  >
+                    Cancel
                   </Button>
                 </>
               ) : null}
@@ -244,7 +214,7 @@ export function RequestsTable() {
         },
       },
     ],
-    [assignForm, closeMutation, escalateForm],
+    [assignForm, escalateForm, rebroadcastForm, rematchMutation, statusMutation],
   );
 
   const table = useReactTable({
@@ -260,26 +230,18 @@ export function RequestsTable() {
       <TableShell
         toolbar={
           <>
-            <div className="min-w-[200px] flex-1">
-              <Label htmlFor="request-query">Search</Label>
+            <div className="min-w-[160px] flex-1">
+              <Label htmlFor="req-query">Search</Label>
               <Input
-                id="request-query"
-                placeholder="Requester, ID…"
+                id="req-query"
                 value={draftQuery}
                 onChange={(e) => setDraftQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    setParams((prev) => ({
-                      ...prev,
-                      query: draftQuery,
-                      page: 1,
-                    }));
-                  }
-                }}
+                onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+                placeholder="Requester, ID…"
               />
             </div>
-            <div className="w-full sm:w-32">
-              <Label htmlFor="req-blood">Blood type</Label>
+            <div className="w-full sm:w-28">
+              <Label htmlFor="req-blood">Blood</Label>
               <Select
                 id="req-blood"
                 value={params.bloodType ?? ""}
@@ -292,14 +254,14 @@ export function RequestsTable() {
                 }
               >
                 <option value="">All</option>
-                {BLOOD_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {type}
+                {BLOOD_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
                   </option>
                 ))}
               </Select>
             </div>
-            <div className="w-full sm:w-36">
+            <div className="w-full sm:w-32">
               <Label htmlFor="req-status">Status</Label>
               <Select
                 id="req-status"
@@ -313,40 +275,43 @@ export function RequestsTable() {
                 }
               >
                 <option value="">All</option>
-                <option value="open">Open</option>
+                <option value="active">Active</option>
                 <option value="matched">Matched</option>
-                <option value="closed">Closed</option>
+                <option value="fulfilled">Fulfilled</option>
+                <option value="expired">Expired</option>
                 <option value="cancelled">Cancelled</option>
               </Select>
             </div>
             <div className="w-full sm:w-32">
-              <Label htmlFor="req-urgent">Urgent</Label>
+              <Label htmlFor="req-urgency">Urgency</Label>
               <Select
-                id="req-urgent"
-                value={params.urgent ?? ""}
+                id="req-urgency"
+                value={params.urgency ?? ""}
                 onChange={(e) =>
                   setParams((prev) => ({
                     ...prev,
-                    urgent: e.target.value as "" | "true" | "false",
+                    urgency: e.target.value as UrgencyLevel | "",
                     page: 1,
                   }))
                 }
               >
                 <option value="">All</option>
-                <option value="true">Urgent only</option>
-                <option value="false">Non-urgent</option>
+                <option value="normal">Normal</option>
+                <option value="urgent">Urgent</option>
+                <option value="critical">Critical</option>
               </Select>
             </div>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                setParams((prev) => ({
-                  ...prev,
-                  query: draftQuery,
-                  page: 1,
-                }))
-              }
-            >
+            <div className="w-full sm:w-32">
+              <Label htmlFor="req-region">Region</Label>
+              <Input
+                id="req-region"
+                value={draftRegion}
+                onChange={(e) => setDraftRegion(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+                placeholder="Region"
+              />
+            </div>
+            <Button variant="secondary" onClick={applyFilters}>
               Apply
             </Button>
           </>
@@ -369,7 +334,7 @@ export function RequestsTable() {
             description={
               listQuery.error instanceof ApiRequestError
                 ? listQuery.error.message
-                : "Something went wrong."
+                : undefined
             }
           />
         ) : table.getRowModel().rows.length === 0 ? (
@@ -377,16 +342,13 @@ export function RequestsTable() {
         ) : (
           <table>
             <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id}>
-                      {header.isPlaceholder
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id}>
+                  {hg.headers.map((h) => (
+                    <th key={h.id}>
+                      {h.isPlaceholder
                         ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
+                        : flexRender(h.column.columnDef.header, h.getContext())}
                     </th>
                   ))}
                 </tr>
@@ -397,10 +359,7 @@ export function RequestsTable() {
                 <tr key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
                 </tr>
@@ -410,12 +369,105 @@ export function RequestsTable() {
         )}
       </TableShell>
 
+      {panel?.type === "detail" ? (
+        <Modal title="Request detail" onClose={closePanel} wide>
+          {detailQuery.isLoading ? (
+            <EmptyState title="Loading…" />
+          ) : detailQuery.data ? (
+            <div className="space-y-2 text-sm">
+              <p>
+                <span className="text-[var(--ink-muted)]">Requester:</span>{" "}
+                {detailQuery.data.requesterName}
+              </p>
+              <p>
+                <span className="text-[var(--ink-muted)]">Blood:</span>{" "}
+                {detailQuery.data.neededBloodType}
+              </p>
+              <p>
+                <span className="text-[var(--ink-muted)]">Status:</span>{" "}
+                {detailQuery.data.status} · {detailQuery.data.urgency}
+              </p>
+              <p>
+                <span className="text-[var(--ink-muted)]">Radius:</span>{" "}
+                {detailQuery.data.currentRadiusKm != null
+                  ? `${detailQuery.data.currentRadiusKm} km`
+                  : "—"}
+              </p>
+              <p>
+                <span className="text-[var(--ink-muted)]">Notes:</span>{" "}
+                {detailQuery.data.notes || "—"}
+              </p>
+              <div className="flex justify-end pt-2">
+                <Button variant="secondary" onClick={closePanel}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <EmptyState title="Not found" />
+          )}
+        </Modal>
+      ) : null}
+
+      {panel?.type === "matches" ? (
+        <Modal title="Matching log" onClose={closePanel} wide>
+          {matchesQuery.isLoading ? (
+            <EmptyState title="Loading matches…" />
+          ) : matchesQuery.isError ? (
+            <EmptyState
+              title="Couldn’t load matches"
+              description={
+                matchesQuery.error instanceof ApiRequestError
+                  ? matchesQuery.error.message
+                  : undefined
+              }
+            />
+          ) : (matchesQuery.data?.length ?? 0) === 0 ? (
+            <EmptyState title="No match events yet" />
+          ) : (
+            <div className="max-h-96 overflow-y-auto">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Donor</th>
+                    <th>Notified</th>
+                    <th>Response</th>
+                    <th>Time</th>
+                    <th>Distance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {matchesQuery.data?.map((m) => (
+                    <tr key={m.id}>
+                      <td>{m.donorName}</td>
+                      <td>{formatDate(m.notifiedAt)}</td>
+                      <td>{m.response ?? "—"}</td>
+                      <td>
+                        {m.responseTimeSeconds != null
+                          ? `${m.responseTimeSeconds}s`
+                          : "—"}
+                      </td>
+                      <td>
+                        {m.distanceKm != null
+                          ? `${m.distanceKm.toFixed(1)} km`
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="mt-4 flex justify-end">
+            <Button variant="secondary" onClick={closePanel}>
+              Close
+            </Button>
+          </div>
+        </Modal>
+      ) : null}
+
       {panel?.type === "assign" ? (
-        <Modal
-          title="Assign donor"
-          description={`Manually match a donor to request ${panel.request.id.slice(0, 8)}…`}
-          onClose={() => setPanel(null)}
-        >
+        <Modal title="Assign donor" onClose={closePanel}>
           <form
             className="space-y-4"
             onSubmit={assignForm.handleSubmit((values) =>
@@ -432,7 +484,7 @@ export function RequestsTable() {
               ) : null}
             </div>
             <div>
-              <Label htmlFor="assign-note">Note (optional)</Label>
+              <Label htmlFor="assign-note">Note</Label>
               <Textarea id="assign-note" {...assignForm.register("note")} />
             </div>
             {assignMutation.error instanceof ApiRequestError ? (
@@ -441,20 +493,16 @@ export function RequestsTable() {
               </p>
             ) : null}
             <ModalActions
-              onCancel={() => setPanel(null)}
+              onCancel={closePanel}
               pending={assignMutation.isPending}
-              submitLabel="Assign donor"
+              label="Assign"
             />
           </form>
         </Modal>
       ) : null}
 
       {panel?.type === "escalate" ? (
-        <Modal
-          title="Escalate request"
-          description="Flag this request for priority ops follow-up. Audit logged server-side."
-          onClose={() => setPanel(null)}
-        >
+        <Modal title="Escalate radius" onClose={closePanel}>
           <form
             className="space-y-4"
             onSubmit={escalateForm.handleSubmit((values) =>
@@ -462,16 +510,16 @@ export function RequestsTable() {
             )}
           >
             <div>
-              <Label htmlFor="escalate-reason">Reason</Label>
-              <Textarea
-                id="escalate-reason"
-                {...escalateForm.register("reason")}
+              <Label htmlFor="radius">Wider radius (km)</Label>
+              <Input
+                id="radius"
+                type="number"
+                {...escalateForm.register("radiusKm")}
               />
-              {escalateForm.formState.errors.reason ? (
-                <p className="mt-1 text-xs text-[var(--danger)]">
-                  {escalateForm.formState.errors.reason.message}
-                </p>
-              ) : null}
+            </div>
+            <div>
+              <Label htmlFor="esc-reason">Reason</Label>
+              <Textarea id="esc-reason" {...escalateForm.register("reason")} />
             </div>
             {escalateMutation.error instanceof ApiRequestError ? (
               <p className="text-sm text-[var(--danger)]">
@@ -479,72 +527,53 @@ export function RequestsTable() {
               </p>
             ) : null}
             <ModalActions
-              onCancel={() => setPanel(null)}
+              onCancel={closePanel}
               pending={escalateMutation.isPending}
-              submitLabel="Escalate"
-              danger
+              label="Escalate"
             />
           </form>
         </Modal>
       ) : null}
 
-      {panel?.type === "log" ? (
-        <Modal
-          title="Matching log"
-          description={`Events for request ${panel.request.id.slice(0, 8)}…`}
-          onClose={() => setPanel(null)}
-          wide
-        >
-          {matchingLogQuery.isLoading ? (
-            <EmptyState title="Loading matching log…" />
-          ) : matchingLogQuery.isError ? (
-            <EmptyState
-              title="Couldn’t load matching log"
-              description={
-                matchingLogQuery.error instanceof ApiRequestError
-                  ? matchingLogQuery.error.message
-                  : undefined
-              }
-            />
-          ) : (matchingLogQuery.data?.length ?? 0) === 0 ? (
-            <EmptyState title="No matching events yet" />
-          ) : (
-            <div className="max-h-96 overflow-y-auto">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Time</th>
-                    <th>Event</th>
-                    <th>Donor</th>
-                    <th>Distance</th>
-                    <th>Message</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {matchingLogQuery.data?.map((entry) => (
-                    <tr key={entry.id}>
-                      <td className="whitespace-nowrap">
-                        {formatDate(entry.createdAt)}
-                      </td>
-                      <td>{entry.event}</td>
-                      <td>{entry.donorName ?? entry.donorId ?? "—"}</td>
-                      <td>
-                        {entry.distanceKm != null
-                          ? `${entry.distanceKm.toFixed(1)} km`
-                          : "—"}
-                      </td>
-                      <td>{entry.message}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {panel?.type === "rebroadcast" ? (
+        <Modal title="Rebroadcast / override" onClose={closePanel}>
+          <form
+            className="space-y-4"
+            onSubmit={rebroadcastForm.handleSubmit((values) =>
+              rebroadcastMutation.mutate({ id: panel.request.id, values }),
+            )}
+          >
+            <div>
+              <Label htmlFor="rb-mode">Mode</Label>
+              <Select id="rb-mode" {...rebroadcastForm.register("mode")}>
+                <option value="same">Re-broadcast same radius</option>
+                <option value="wider_radius">Wider radius</option>
+                <option value="force_donor">Force-notify specific donor</option>
+              </Select>
             </div>
-          )}
-          <div className="mt-4 flex justify-end">
-            <Button variant="secondary" onClick={() => setPanel(null)}>
-              Close
-            </Button>
-          </div>
+            <div>
+              <Label htmlFor="rb-radius">Radius (km)</Label>
+              <Input
+                id="rb-radius"
+                type="number"
+                {...rebroadcastForm.register("radiusKm")}
+              />
+            </div>
+            <div>
+              <Label htmlFor="rb-donor">Donor ID (force mode)</Label>
+              <Input id="rb-donor" {...rebroadcastForm.register("donorId")} />
+            </div>
+            {rebroadcastMutation.error instanceof ApiRequestError ? (
+              <p className="text-sm text-[var(--danger)]">
+                {rebroadcastMutation.error.message}
+              </p>
+            ) : null}
+            <ModalActions
+              onCancel={closePanel}
+              pending={rebroadcastMutation.isPending}
+              label="Send"
+            />
+          </form>
         </Modal>
       ) : null}
     </>
@@ -553,13 +582,11 @@ export function RequestsTable() {
 
 function Modal({
   title,
-  description,
   onClose,
   children,
   wide,
 }: {
   title: string;
-  description: string;
   onClose: () => void;
   children: React.ReactNode;
   wide?: boolean;
@@ -570,11 +597,10 @@ function Modal({
       onClick={onClose}
     >
       <div
-        className={`w-full rounded-lg border border-[var(--border)] bg-white p-6 shadow-xl ${wide ? "max-w-3xl" : "max-w-md"}`}
+        className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-[var(--border)] bg-white p-6 shadow-xl ${wide ? "max-w-3xl" : "max-w-md"}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-[var(--ink)]">{title}</h2>
-        <p className="mt-1 text-sm text-[var(--ink-muted)]">{description}</p>
+        <h2 className="text-lg font-semibold">{title}</h2>
         <div className="mt-4">{children}</div>
       </div>
     </div>
@@ -584,25 +610,19 @@ function Modal({
 function ModalActions({
   onCancel,
   pending,
-  submitLabel,
-  danger,
+  label,
 }: {
   onCancel: () => void;
   pending: boolean;
-  submitLabel: string;
-  danger?: boolean;
+  label: string;
 }) {
   return (
     <div className="flex justify-end gap-2">
       <Button type="button" variant="secondary" onClick={onCancel}>
         Cancel
       </Button>
-      <Button
-        type="submit"
-        variant={danger ? "danger" : "primary"}
-        disabled={pending}
-      >
-        {pending ? "Saving…" : submitLabel}
+      <Button type="submit" disabled={pending}>
+        {pending ? "Saving…" : label}
       </Button>
     </div>
   );

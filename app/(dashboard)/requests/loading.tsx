@@ -1,5 +1,13 @@
-import ModuleLoading from "@/components/ui/module-loading";
+import {
+  PageHeaderSkeleton,
+  TableSkeleton,
+} from "@/components/ui/skeletons";
 
 export default function RequestsLoading() {
-  return <ModuleLoading />;
+  return (
+    <div>
+      <PageHeaderSkeleton />
+      <TableSkeleton columns={8} />
+    </div>
+  );
 }

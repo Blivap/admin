@@ -1,60 +1,53 @@
 # Blivap Admin
 
-Next.js 15 admin dashboard for Blivap live blood donor matching.
+Next.js 15 ops dashboard for Blivap live blood donor matching.
 
 ## Stack
 
 - Next.js 15 (App Router) + TypeScript (strict)
 - TanStack Query + TanStack Table
 - react-hook-form + Zod
-- Tailwind CSS
+- Tailwind CSS + Recharts
 
 ## Architecture
 
 ```
 App Router
-  Server Components  → prefetch + HydrationBoundary (first paint)
+  Server Components  → prefetch + HydrationBoundary
   Client Components  → tables, forms, useMutation
        ↓
-lib/api/*            → one typed module per domain
+lib/api/*            → one module per domain (endpoint paths live here only)
        ↓
-lib/api/client.ts    → single fetch wrapper (credentials, errors, 401 → /login)
+lib/api/client.ts    → credentials:include, ApiRequestError, 401 → /login
        ↓
-NestJS /admin/*      → AdminAuthGuard + AuditInterceptor
+NestJS /admin/*      → AdminGuard + JWT admin_session cookie + AuditInterceptor
 ```
 
-Auth uses the `admin_session` httpOnly cookie only (never localStorage). Middleware redirects unauthenticated users to `/login?from=…`.
+Auth uses a JWT in the `admin_session` httpOnly cookie (separate from mobile donor/requester auth). Admin identity lives in `admin_users` with an `AdminRole[]` field designed for multi-admin growth — not a single-user hardcode.
 
-## Setup
-
-```bash
-cp .env.example .env.local
-# set NEXT_PUBLIC_API_URL to your NestJS API origin
-
-npm install
-npm run dev
-```
+Mutating actions are **never** audited from the frontend; NestJS `AuditInterceptor` writes `audit_logs` automatically.
 
 ## Modules
 
 | Route | Purpose |
 |-------|---------|
-| `/login` | Admin sign-in |
-| `/users` | Search / filter / suspend users |
-| `/requests` | Assign donor, escalate, matching log |
-| `/notifications` | Broadcast composer + delivery stats |
-| `/verifications` | Approve / reject queue |
-| `/analytics` | Charts + CSV export |
-| `/settings` | Matching radius, eligibility, maintenance |
+| `/overview` | Live stats, 30-day chart, unmatched urgent alerts |
+| `/users` | Filterable users, detail, suspend/reactivate/verify/reset/merge |
+| `/requests` | Request ops, match log, assign/escalate/rematch/rebroadcast |
+| `/notifications` | Auto-broadcast history + admin campaigns / DMs |
+| `/verifications` | Approve / reject / flag queue |
+| `/cms` | Landing copy, FAQs, testimonials |
+| `/analytics` | Donors/requests metrics + CSV export |
+| `/settings` | Matching, eligibility, alert threshold, maintenance |
+| `/audit` | Read-only audit log |
 
-## API contract (expected NestJS routes)
+## Setup
 
-All mutating `/admin/*` calls are audit-logged by the NestJS `AuditInterceptor` — the frontend never calls a separate audit endpoint.
+```bash
+cp .env.example .env.local
+# NEXT_PUBLIC_API_URL=http://localhost:2001  (Nest backend)
+# Admin UI: yarn dev --port=8057
 
-- `POST /admin/auth/login` · `POST /admin/auth/logout` · `GET /admin/auth/me`
-- `GET|POST /admin/users…`
-- `GET|POST /admin/requests…`
-- `GET|POST /admin/notifications…`
-- `GET|POST /admin/verifications…`
-- `GET /admin/analytics` · `GET /admin/analytics/export`
-- `GET|PATCH /admin/settings`
+npm install
+npm run dev
+```

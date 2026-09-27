@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function buildQueryString(
-  params: Record<string, string | number | boolean | undefined | null>,
+  params: object,
 ): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {

@@ -1,4 +1,9 @@
 import { env } from "@/config/env";
+import {
+  clearSessionToken,
+  getSessionTokenFromDocument,
+  getSessionTokenFromServer,
+} from "@/lib/auth/session";
 
 export class ApiRequestError extends Error {
   readonly status: number;
@@ -24,20 +29,9 @@ export interface ApiRequestOptions {
   skipAuthRedirect?: boolean;
 }
 
-async function cookieHeaderFromServer(): Promise<string | undefined> {
-  if (typeof window !== "undefined") return undefined;
-  try {
-    const { cookies } = await import("next/headers");
-    const jar = await cookies();
-    const serialized = jar.toString();
-    return serialized || undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 function redirectToLogin() {
   if (typeof window === "undefined") return;
+  clearSessionToken();
   const from = `${window.location.pathname}${window.location.search}`;
   const params = new URLSearchParams();
   if (from && from !== "/login") params.set("from", from);
@@ -49,16 +43,26 @@ function extractErrorMessage(payload: unknown, fallback: string): string {
   if (!payload || typeof payload !== "object") return fallback;
   const record = payload as Record<string, unknown>;
   if (typeof record.message === "string") return record.message;
-  if (Array.isArray(record.message) && record.message.every((m) => typeof m === "string")) {
+  if (
+    Array.isArray(record.message) &&
+    record.message.every((m) => typeof m === "string")
+  ) {
     return record.message.join(", ");
   }
   if (typeof record.error === "string") return record.error;
   return fallback;
 }
 
+async function resolveAccessToken(): Promise<string | undefined> {
+  if (typeof window !== "undefined") {
+    return getSessionTokenFromDocument();
+  }
+  return getSessionTokenFromServer();
+}
+
 /**
  * Single typed fetch wrapper. Every admin API call goes through this.
- * Attaches credentials, JSON-encodes bodies, throws ApiRequestError on non-2xx,
+ * Attaches Bearer JWT, JSON-encodes bodies, throws ApiRequestError on non-2xx,
  * and redirects to /login on 401.
  */
 export async function apiClient<T>(
@@ -78,12 +82,19 @@ export async function apiClient<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const serverCookie = await cookieHeaderFromServer();
-  if (serverCookie && !headers.has("Cookie")) {
-    headers.set("Cookie", serverCookie);
+  const token = await resolveAccessToken();
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(`${env.NEXT_PUBLIC_API_URL}${path}`, {
+  // Browser: same-origin /admin/* (proxied by next.config rewrites).
+  // Server: call Nest directly.
+  const baseUrl =
+    typeof window === "undefined"
+      ? env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")
+      : "";
+
+  const response = await fetch(`${baseUrl}${path}`, {
     method,
     headers,
     credentials: "include",

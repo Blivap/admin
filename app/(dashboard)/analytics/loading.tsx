@@ -1,5 +1,13 @@
-import ModuleLoading from "@/components/ui/module-loading";
+import {
+  AnalyticsSkeleton,
+  PageHeaderSkeleton,
+} from "@/components/ui/skeletons";
 
 export default function AnalyticsLoading() {
-  return <ModuleLoading />;
+  return (
+    <div>
+      <PageHeaderSkeleton />
+      <AnalyticsSkeleton />
+    </div>
+  );
 }

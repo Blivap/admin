@@ -3,6 +3,7 @@ import { buildQueryString } from "@/lib/utils";
 import type {
   AdminVerificationDetail,
   AdminVerificationListItem,
+  FlagVerificationPayload,
   PaginatedResponse,
   RejectVerificationPayload,
   VerificationsListParams,
@@ -31,6 +32,13 @@ export function rejectVerification(
 ) {
   return apiClient<AdminVerificationDetail>(
     `/admin/verifications/${id}/reject`,
+    { method: "POST", body: payload },
+  );
+}
+
+export function flagVerification(id: string, payload: FlagVerificationPayload) {
+  return apiClient<AdminVerificationDetail>(
+    `/admin/verifications/${id}/flag`,
     { method: "POST", body: payload },
   );
 }

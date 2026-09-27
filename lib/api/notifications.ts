@@ -1,33 +1,36 @@
 import { apiClient } from "@/lib/api/client";
 import { buildQueryString } from "@/lib/utils";
 import type {
-  AdminNotificationDetail,
   AdminNotificationListItem,
   BroadcastPayload,
+  DirectMessagePayload,
   NotificationDeliveryStats,
   NotificationsListParams,
   PaginatedResponse,
 } from "@/types";
 
-export function listNotifications(params: NotificationsListParams = {}) {
+export function listNotificationHistory(params: NotificationsListParams = {}) {
   return apiClient<PaginatedResponse<AdminNotificationListItem>>(
-    `/admin/notifications${buildQueryString(params)}`,
+    `/admin/notifications/history${buildQueryString(params)}`,
   );
 }
 
-export function getNotification(id: string) {
-  return apiClient<AdminNotificationDetail>(`/admin/notifications/${id}`);
-}
-
-export function getNotificationStats(id: string) {
+export function getDeliveryStats(id: string) {
   return apiClient<NotificationDeliveryStats>(
-    `/admin/notifications/${id}/stats`,
+    `/admin/notifications/${id}/delivery-stats`,
   );
 }
 
 export function sendBroadcast(payload: BroadcastPayload) {
-  return apiClient<AdminNotificationDetail>("/admin/notifications/broadcast", {
+  return apiClient<AdminNotificationListItem>("/admin/notifications/broadcast", {
     method: "POST",
     body: payload,
   });
+}
+
+export function sendDirectMessage(userId: string, payload: DirectMessagePayload) {
+  return apiClient<AdminNotificationListItem>(
+    `/admin/notifications/user/${userId}`,
+    { method: "POST", body: payload },
+  );
 }

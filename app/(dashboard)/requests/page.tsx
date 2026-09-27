@@ -14,21 +14,20 @@ const defaultParams = { page: 1, pageSize: 20 };
 
 export default async function RequestsPage() {
   const queryClient = new QueryClient();
-
   try {
     await queryClient.prefetchQuery({
       queryKey: queryKeys.requests.list(defaultParams),
       queryFn: () => listRequests(defaultParams),
     });
   } catch {
-    // Client table retries via useQuery.
+    // Client retries.
   }
 
   return (
     <>
       <PageHeader
-        title="Blood Requests"
-        description="Monitor open requests, assign donors manually, escalate stuck matches, and inspect matching logs."
+        title="Blood Request Management"
+        description="Filter by status, blood type, urgency, and region. Assign donors, escalate, rematch, or rebroadcast."
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
         <RequestsTable />

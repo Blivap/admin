@@ -1,5 +1,13 @@
-import ModuleLoading from "@/components/ui/module-loading";
+import {
+  FormSkeleton,
+  PageHeaderSkeleton,
+} from "@/components/ui/skeletons";
 
 export default function SettingsLoading() {
-  return <ModuleLoading />;
+  return (
+    <div>
+      <PageHeaderSkeleton />
+      <FormSkeleton />
+    </div>
+  );
 }

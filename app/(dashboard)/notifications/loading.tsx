@@ -1,5 +1,13 @@
-import ModuleLoading from "@/components/ui/module-loading";
+import {
+  PageHeaderSkeleton,
+  TableSkeleton,
+} from "@/components/ui/skeletons";
 
 export default function NotificationsLoading() {
-  return <ModuleLoading />;
+  return (
+    <div>
+      <PageHeaderSkeleton />
+      <TableSkeleton columns={6} />
+    </div>
+  );
 }

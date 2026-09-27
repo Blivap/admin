@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query";
 
 import { PageHeader } from "@/components/ui/page-header";
-import { listNotifications } from "@/lib/api/notifications";
+import { listNotificationHistory } from "@/lib/api/notifications";
 import { queryKeys } from "@/lib/query-keys";
 
 import { NotificationsTable } from "./notifications-table";
@@ -14,21 +14,20 @@ const defaultParams = { page: 1, pageSize: 20 };
 
 export default async function NotificationsPage() {
   const queryClient = new QueryClient();
-
   try {
     await queryClient.prefetchQuery({
-      queryKey: queryKeys.notifications.list(defaultParams),
-      queryFn: () => listNotifications(defaultParams),
+      queryKey: queryKeys.notifications.history(defaultParams),
+      queryFn: () => listNotificationHistory(defaultParams),
     });
   } catch {
-    // Client table retries via useQuery.
+    // Client retries.
   }
 
   return (
     <>
       <PageHeader
         title="Notifications"
-        description="Compose broadcasts, inspect delivery stats, and review individual messages."
+        description="Monitor auto urgent broadcasts and compose system announcements, campaigns, DMs, and re-engagement nudges."
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
         <NotificationsTable />

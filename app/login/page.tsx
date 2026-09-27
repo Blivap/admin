@@ -1,61 +1,22 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
 import { Droplets } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ApiRequestError } from "@/lib/api/client";
-import { login } from "@/lib/api/auth";
-
-const loginSchema = z.object({
-  email: z.string().email("Enter a valid email"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-});
-
-type LoginFormValues = z.infer<typeof loginSchema>;
+import { useLogin } from "@/hooks/use-login";
 
 function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const from = searchParams.get("from") || "/users";
-
+  const { form, mutation, errorMessage, onSubmit } = useLogin();
   const {
     register,
-    handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
-  });
-
-  const mutation = useMutation({
-    mutationFn: login,
-    onSuccess: () => {
-      router.replace(from.startsWith("/") ? from : "/users");
-      router.refresh();
-    },
-  });
-
-  const errorMessage =
-    mutation.error instanceof ApiRequestError
-      ? mutation.error.message
-      : mutation.error
-        ? "Unable to sign in. Try again."
-        : null;
+  } = form;
 
   return (
-    <form
-      className="space-y-4"
-      onSubmit={handleSubmit((values) => mutation.mutate(values))}
-      noValidate
-    >
+    <form className="space-y-4" onSubmit={onSubmit} noValidate>
       <div>
         <Label htmlFor="email">Email</Label>
         <Input
@@ -125,7 +86,9 @@ export default function LoginPage() {
             </p>
           </div>
         </div>
-        <Suspense fallback={<p className="text-sm text-[var(--ink-muted)]">Loading…</p>}>
+        <Suspense
+          fallback={<p className="text-sm text-[var(--ink-muted)]">Loading…</p>}
+        >
           <LoginForm />
         </Suspense>
       </div>

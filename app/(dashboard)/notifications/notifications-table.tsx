@@ -6,11 +6,7 @@ import {
   useReactTable,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { useForm, Controller } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useCallback, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,110 +17,55 @@ import { Pagination } from "@/components/ui/pagination";
 import { Select } from "@/components/ui/select";
 import { TableShell } from "@/components/ui/table-shell";
 import { Textarea } from "@/components/ui/textarea";
+import { useNotifications } from "@/hooks/use-notifications";
 import { ApiRequestError } from "@/lib/api/client";
-import {
-  getNotification,
-  getNotificationStats,
-  listNotifications,
-  sendBroadcast,
-} from "@/lib/api/notifications";
-import { queryKeys } from "@/lib/query-keys";
+import { BLOOD_TYPES } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
 import type {
   AdminNotificationListItem,
-  NotificationAudience,
-  NotificationChannel,
   NotificationDeliveryStatus,
-  NotificationsListParams,
+  NotificationKind,
 } from "@/types";
-
-const CHANNELS: NotificationChannel[] = ["push", "email", "sms", "in_app"];
-
-const broadcastSchema = z.object({
-  subject: z.string().min(3, "Subject is required"),
-  title: z.string().min(3, "Title is required"),
-  body: z.string().min(10, "Body must be at least 10 characters"),
-  audience: z.enum(["all", "donors", "requesters", "admins", "segment"]),
-  channels: z
-    .array(z.enum(["push", "email", "sms", "in_app"]))
-    .min(1, "Select at least one channel"),
-});
-
-type BroadcastFormValues = z.infer<typeof broadcastSchema>;
 
 type Panel =
   | { type: "compose" }
-  | { type: "detail"; notification: AdminNotificationListItem }
+  | { type: "dm" }
   | { type: "stats"; notification: AdminNotificationListItem }
   | null;
 
-function deliveryTone(status: NotificationDeliveryStatus) {
+function statusTone(status: NotificationDeliveryStatus) {
   switch (status) {
+    case "delivered":
     case "sent":
       return "success" as const;
     case "failed":
       return "danger" as const;
     case "partial":
       return "warning" as const;
-    case "sending":
-    case "queued":
-      return "info" as const;
     default:
-      return "neutral" as const;
+      return "info" as const;
   }
 }
 
 export function NotificationsTable() {
-  const queryClient = useQueryClient();
-  const [params, setParams] = useState<NotificationsListParams>({
-    page: 1,
-    pageSize: 20,
-    query: "",
-    status: "",
-    audience: "",
-  });
-  const [draftQuery, setDraftQuery] = useState("");
   const [panel, setPanel] = useState<Panel>(null);
+  const closePanel = useCallback(() => setPanel(null), []);
 
-  const listQuery = useQuery({
-    queryKey: queryKeys.notifications.list(params),
-    queryFn: () => listNotifications(params),
-  });
+  const statsNotificationId =
+    panel?.type === "stats" ? panel.notification.id : "";
 
-  const detailId = panel?.type === "detail" ? panel.notification.id : "";
-  const statsId = panel?.type === "stats" ? panel.notification.id : "";
-
-  const detailQuery = useQuery({
-    queryKey: queryKeys.notifications.detail(detailId),
-    queryFn: () => getNotification(detailId),
-    enabled: Boolean(detailId),
-  });
-
-  const statsQuery = useQuery({
-    queryKey: queryKeys.notifications.stats(statsId),
-    queryFn: () => getNotificationStats(statsId),
-    enabled: Boolean(statsId),
-  });
-  const broadcastForm = useForm<BroadcastFormValues>({
-    resolver: zodResolver(broadcastSchema),
-    defaultValues: {
-      subject: "",
-      title: "",
-      body: "",
-      audience: "all",
-      channels: ["push"],
-    },
-  });
-
-  const broadcastMutation = useMutation({
-    mutationFn: sendBroadcast,
-    onSuccess: async () => {
-      setPanel(null);
-      broadcastForm.reset();
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.notifications.all,
-      });
-    },
+  const {
+    params,
+    setParams,
+    listQuery,
+    statsQuery,
+    broadcastForm,
+    dmForm,
+    broadcastMutation,
+    dmMutation,
+  } = useNotifications({
+    statsNotificationId,
+    onActionSuccess: closePanel,
   });
 
   const columns = useMemo<ColumnDef<AdminNotificationListItem>[]>(
@@ -135,35 +76,33 @@ export function NotificationsTable() {
         cell: ({ row }) => (
           <div>
             <p className="font-medium">{row.original.title}</p>
-            <p className="text-xs text-[var(--ink-muted)]">
-              {row.original.subject}
+            <p className="line-clamp-1 text-xs text-[var(--ink-muted)]">
+              {row.original.body}
             </p>
           </div>
         ),
       },
       {
-        accessorKey: "audience",
-        header: "Audience",
-      },
-      {
-        id: "channels",
-        header: "Channels",
-        cell: ({ row }) => row.original.channels.join(", "),
+        accessorKey: "kind",
+        header: "Kind",
+        cell: ({ getValue }) => (
+          <span className="text-xs">{getValue<string>().replace(/_/g, " ")}</span>
+        ),
       },
       {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => (
-          <Badge tone={deliveryTone(row.original.status)}>
+          <Badge tone={statusTone(row.original.status)}>
             {row.original.status}
           </Badge>
         ),
       },
       {
         id: "delivery",
-        header: "Delivery",
+        header: "Sent / Del / Open",
         cell: ({ row }) =>
-          `${row.original.deliveredCount}/${row.original.recipientCount}`,
+          `${row.original.sentCount}/${row.original.deliveredCount}/${row.original.openedCount}`,
       },
       {
         accessorKey: "createdAt",
@@ -174,26 +113,15 @@ export function NotificationsTable() {
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <div className="flex gap-1.5">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                setPanel({ type: "detail", notification: row.original })
-              }
-            >
-              View
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() =>
-                setPanel({ type: "stats", notification: row.original })
-              }
-            >
-              Stats
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() =>
+              setPanel({ type: "stats", notification: row.original })
+            }
+          >
+            Delivery stats
+          </Button>
         ),
       },
     ],
@@ -210,48 +138,62 @@ export function NotificationsTable() {
 
   return (
     <>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex flex-wrap gap-2">
         <Button
           onClick={() => {
             broadcastForm.reset({
-              subject: "",
               title: "",
               body: "",
-              audience: "all",
-              channels: ["push"],
+              priority: "normal",
+              bloodType: "",
+              region: "",
+              role: "",
             });
             setPanel({ type: "compose" });
           }}
         >
-          Compose broadcast
+          Compose broadcast / campaign
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            dmForm.reset();
+            setPanel({ type: "dm" });
+          }}
+        >
+          Direct message
         </Button>
       </div>
 
       <TableShell
         toolbar={
           <>
-            <div className="min-w-[200px] flex-1">
-              <Label htmlFor="notif-query">Search</Label>
-              <Input
-                id="notif-query"
-                placeholder="Subject, title…"
-                value={draftQuery}
-                onChange={(e) => setDraftQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    setParams((prev) => ({
-                      ...prev,
-                      query: draftQuery,
-                      page: 1,
-                    }));
-                  }
-                }}
-              />
+            <div className="w-full sm:w-44">
+              <Label htmlFor="n-kind">Kind</Label>
+              <Select
+                id="n-kind"
+                value={params.kind ?? ""}
+                onChange={(e) =>
+                  setParams((prev) => ({
+                    ...prev,
+                    kind: e.target.value as NotificationKind | "",
+                    page: 1,
+                  }))
+                }
+              >
+                <option value="">All</option>
+                <option value="urgent_broadcast">Urgent broadcast</option>
+                <option value="system_announcement">System announcement</option>
+                <option value="segmented_campaign">Segmented campaign</option>
+                <option value="direct_message">Direct message</option>
+                <option value="reengagement">Re-engagement</option>
+                <option value="rebroadcast">Rebroadcast</option>
+              </Select>
             </div>
             <div className="w-full sm:w-36">
-              <Label htmlFor="notif-status">Status</Label>
+              <Label htmlFor="n-status">Status</Label>
               <Select
-                id="notif-status"
+                id="n-status"
                 value={params.status ?? ""}
                 onChange={(e) =>
                   setParams((prev) => ({
@@ -263,44 +205,12 @@ export function NotificationsTable() {
               >
                 <option value="">All</option>
                 <option value="queued">Queued</option>
-                <option value="sending">Sending</option>
                 <option value="sent">Sent</option>
+                <option value="delivered">Delivered</option>
                 <option value="partial">Partial</option>
                 <option value="failed">Failed</option>
               </Select>
             </div>
-            <div className="w-full sm:w-36">
-              <Label htmlFor="notif-audience">Audience</Label>
-              <Select
-                id="notif-audience"
-                value={params.audience ?? ""}
-                onChange={(e) =>
-                  setParams((prev) => ({
-                    ...prev,
-                    audience: e.target.value as NotificationAudience | "",
-                    page: 1,
-                  }))
-                }
-              >
-                <option value="">All</option>
-                <option value="all">All users</option>
-                <option value="donors">Donors</option>
-                <option value="requesters">Requesters</option>
-                <option value="admins">Admins</option>
-              </Select>
-            </div>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                setParams((prev) => ({
-                  ...prev,
-                  query: draftQuery,
-                  page: 1,
-                }))
-              }
-            >
-              Apply
-            </Button>
           </>
         }
         footer={
@@ -314,10 +224,10 @@ export function NotificationsTable() {
         }
       >
         {listQuery.isLoading ? (
-          <EmptyState title="Loading notifications…" />
+          <EmptyState title="Loading notification history…" />
         ) : listQuery.isError ? (
           <EmptyState
-            title="Couldn’t load notifications"
+            title="Couldn’t load history"
             description={
               listQuery.error instanceof ApiRequestError
                 ? listQuery.error.message
@@ -329,16 +239,13 @@ export function NotificationsTable() {
         ) : (
           <table>
             <thead>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <th key={header.id}>
-                      {header.isPlaceholder
+              {table.getHeaderGroups().map((hg) => (
+                <tr key={hg.id}>
+                  {hg.headers.map((h) => (
+                    <th key={h.id}>
+                      {h.isPlaceholder
                         ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
+                        : flexRender(h.column.columnDef.header, h.getContext())}
                     </th>
                   ))}
                 </tr>
@@ -349,10 +256,7 @@ export function NotificationsTable() {
                 <tr key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
                 </tr>
@@ -363,214 +267,190 @@ export function NotificationsTable() {
       </TableShell>
 
       {panel?.type === "compose" ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-lg border border-[var(--border)] bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">Compose broadcast</h2>
-            <p className="mt-1 text-sm text-[var(--ink-muted)]">
-              Delivery is handled by the API; this dashboard never logs the
-              action separately.
-            </p>
-            <form
-              className="mt-4 space-y-4"
-              onSubmit={broadcastForm.handleSubmit((values) =>
-                broadcastMutation.mutate(values),
-              )}
-            >
-              <div>
-                <Label htmlFor="bc-subject">Subject</Label>
-                <Input id="bc-subject" {...broadcastForm.register("subject")} />
-                {broadcastForm.formState.errors.subject ? (
-                  <p className="mt-1 text-xs text-[var(--danger)]">
-                    {broadcastForm.formState.errors.subject.message}
-                  </p>
-                ) : null}
-              </div>
-              <div>
-                <Label htmlFor="bc-title">Title</Label>
-                <Input id="bc-title" {...broadcastForm.register("title")} />
-                {broadcastForm.formState.errors.title ? (
-                  <p className="mt-1 text-xs text-[var(--danger)]">
-                    {broadcastForm.formState.errors.title.message}
-                  </p>
-                ) : null}
-              </div>
-              <div>
-                <Label htmlFor="bc-body">Body</Label>
-                <Textarea id="bc-body" {...broadcastForm.register("body")} />
-                {broadcastForm.formState.errors.body ? (
-                  <p className="mt-1 text-xs text-[var(--danger)]">
-                    {broadcastForm.formState.errors.body.message}
-                  </p>
-                ) : null}
-              </div>
-              <div>
-                <Label htmlFor="bc-audience">Audience</Label>
-                <Select
-                  id="bc-audience"
-                  {...broadcastForm.register("audience")}
-                >
-                  <option value="all">All users</option>
-                  <option value="donors">Donors</option>
-                  <option value="requesters">Requesters</option>
-                  <option value="admins">Admins</option>
-                  <option value="segment">Segment</option>
-                </Select>
-              </div>
-              <div>
-                <Label>Channels</Label>
-                <Controller
-                  control={broadcastForm.control}
-                  name="channels"
-                  render={({ field }) => (
-                    <div className="mt-1 flex flex-wrap gap-3">
-                      {CHANNELS.map((channel) => {
-                        const checked = field.value.includes(channel);
-                        return (
-                          <label
-                            key={channel}
-                            className="flex items-center gap-2 text-sm text-[var(--ink)]"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  field.onChange([...field.value, channel]);
-                                } else {
-                                  field.onChange(
-                                    field.value.filter((c) => c !== channel),
-                                  );
-                                }
-                              }}
-                            />
-                            {channel}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-                />
-                {broadcastForm.formState.errors.channels ? (
-                  <p className="mt-1 text-xs text-[var(--danger)]">
-                    {broadcastForm.formState.errors.channels.message}
-                  </p>
-                ) : null}
-              </div>
-              {broadcastMutation.error instanceof ApiRequestError ? (
-                <p className="text-sm text-[var(--danger)]">
-                  {broadcastMutation.error.message}
+        <Modal title="Compose notification" onClose={closePanel} wide>
+          <p className="mb-3 text-sm text-[var(--ink-muted)]">
+            Leave segment filters empty for a system-wide announcement. Set
+            inactivity days for a re-engagement nudge.
+          </p>
+          <form
+            className="grid gap-4 sm:grid-cols-2"
+            onSubmit={broadcastForm.handleSubmit((v) =>
+              broadcastMutation.mutate(v),
+            )}
+          >
+            <div className="sm:col-span-2">
+              <Label htmlFor="bc-title">Title</Label>
+              <Input id="bc-title" {...broadcastForm.register("title")} />
+              {broadcastForm.formState.errors.title ? (
+                <p className="mt-1 text-xs text-[var(--danger)]">
+                  {broadcastForm.formState.errors.title.message}
                 </p>
               ) : null}
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setPanel(null)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={broadcastMutation.isPending}>
-                  {broadcastMutation.isPending ? "Sending…" : "Send broadcast"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-
-      {panel?.type === "detail" ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-lg border border-[var(--border)] bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">Message detail</h2>
-            {detailQuery.isLoading ? (
-              <EmptyState title="Loading…" />
-            ) : detailQuery.isError ? (
-              <EmptyState
-                title="Couldn’t load message"
-                description={
-                  detailQuery.error instanceof ApiRequestError
-                    ? detailQuery.error.message
-                    : undefined
-                }
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="bc-body">Body</Label>
+              <Textarea id="bc-body" {...broadcastForm.register("body")} />
+              {broadcastForm.formState.errors.body ? (
+                <p className="mt-1 text-xs text-[var(--danger)]">
+                  {broadcastForm.formState.errors.body.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <Label htmlFor="bc-priority">Priority</Label>
+              <Select id="bc-priority" {...broadcastForm.register("priority")}>
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="bc-schedule">Schedule at (optional)</Label>
+              <Input
+                id="bc-schedule"
+                type="datetime-local"
+                {...broadcastForm.register("scheduleAt")}
               />
-            ) : detailQuery.data ? (
-              <div className="mt-4 space-y-3 text-sm">
-                <p>
-                  <span className="text-[var(--ink-muted)]">Title:</span>{" "}
-                  {detailQuery.data.title}
-                </p>
-                <p>
-                  <span className="text-[var(--ink-muted)]">Subject:</span>{" "}
-                  {detailQuery.data.subject}
-                </p>
-                <p>
-                  <span className="text-[var(--ink-muted)]">Audience:</span>{" "}
-                  {detailQuery.data.audience}
-                </p>
-                <p>
-                  <span className="text-[var(--ink-muted)]">Channels:</span>{" "}
-                  {detailQuery.data.channels.join(", ")}
-                </p>
-                <p>
-                  <span className="text-[var(--ink-muted)]">Created by:</span>{" "}
-                  {detailQuery.data.createdByName}
-                </p>
-                <div className="rounded-md bg-[var(--surface)] p-3 whitespace-pre-wrap">
-                  {detailQuery.data.body}
-                </div>
-              </div>
+            </div>
+            <div>
+              <Label htmlFor="bc-blood">Blood type filter</Label>
+              <Select id="bc-blood" {...broadcastForm.register("bloodType")}>
+                <option value="">Any</option>
+                {BLOOD_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="bc-region">Region</Label>
+              <Input id="bc-region" {...broadcastForm.register("region")} />
+            </div>
+            <div>
+              <Label htmlFor="bc-role">Role</Label>
+              <Select id="bc-role" {...broadcastForm.register("role")}>
+                <option value="">Any</option>
+                <option value="donor">Donor</option>
+                <option value="requester">Requester</option>
+                <option value="both">Both</option>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="bc-inactive">Inactive days (re-engage)</Label>
+              <Input
+                id="bc-inactive"
+                type="number"
+                {...broadcastForm.register("inactiveDays")}
+              />
+            </div>
+            <div>
+              <Label htmlFor="bc-from">Last donation from</Label>
+              <Input
+                id="bc-from"
+                type="date"
+                {...broadcastForm.register("lastDonationFrom")}
+              />
+            </div>
+            <div>
+              <Label htmlFor="bc-to">Last donation to</Label>
+              <Input
+                id="bc-to"
+                type="date"
+                {...broadcastForm.register("lastDonationTo")}
+              />
+            </div>
+            {broadcastMutation.error instanceof ApiRequestError ? (
+              <p className="sm:col-span-2 text-sm text-[var(--danger)]">
+                {broadcastMutation.error.message}
+              </p>
             ) : null}
-            <div className="mt-4 flex justify-end">
-              <Button variant="secondary" onClick={() => setPanel(null)}>
-                Close
+            <div className="flex justify-end gap-2 sm:col-span-2">
+              <Button type="button" variant="secondary" onClick={closePanel}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={broadcastMutation.isPending}>
+                {broadcastMutation.isPending ? "Sending…" : "Send"}
               </Button>
             </div>
-          </div>
-        </div>
+          </form>
+        </Modal>
+      ) : null}
+
+      {panel?.type === "dm" ? (
+        <Modal title="Direct message" onClose={closePanel}>
+          <form
+            className="space-y-4"
+            onSubmit={dmForm.handleSubmit((v) => dmMutation.mutate(v))}
+          >
+            <div>
+              <Label htmlFor="dm-user">User ID</Label>
+              <Input id="dm-user" {...dmForm.register("userId")} />
+              {dmForm.formState.errors.userId ? (
+                <p className="mt-1 text-xs text-[var(--danger)]">
+                  {dmForm.formState.errors.userId.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <Label htmlFor="dm-title">Title</Label>
+              <Input id="dm-title" {...dmForm.register("title")} />
+            </div>
+            <div>
+              <Label htmlFor="dm-body">Body</Label>
+              <Textarea id="dm-body" {...dmForm.register("body")} />
+            </div>
+            <div>
+              <Label htmlFor="dm-link">Deep link (optional)</Label>
+              <Input id="dm-link" {...dmForm.register("deepLink")} />
+            </div>
+            {dmMutation.error instanceof ApiRequestError ? (
+              <p className="text-sm text-[var(--danger)]">
+                {dmMutation.error.message}
+              </p>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={closePanel}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={dmMutation.isPending}>
+                {dmMutation.isPending ? "Sending…" : "Send DM"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
       ) : null}
 
       {panel?.type === "stats" ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-lg border border-[var(--border)] bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">Delivery stats</h2>
-            <p className="mt-1 text-sm text-[var(--ink-muted)]">
-              {panel.notification.title}
-            </p>
-            {statsQuery.isLoading ? (
-              <EmptyState title="Loading stats…" />
-            ) : statsQuery.isError ? (
-              <EmptyState
-                title="Couldn’t load stats"
-                description={
-                  statsQuery.error instanceof ApiRequestError
-                    ? statsQuery.error.message
-                    : undefined
-                }
-              />
-            ) : statsQuery.data ? (
-              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <Stat label="Queued" value={statsQuery.data.queued} />
-                <Stat label="Sent" value={statsQuery.data.sent} />
-                <Stat label="Delivered" value={statsQuery.data.delivered} />
-                <Stat label="Failed" value={statsQuery.data.failed} />
-                {Object.entries(statsQuery.data.byChannel).map(
-                  ([channel, count]) => (
-                    <Stat
-                      key={channel}
-                      label={`${channel}`}
-                      value={count ?? 0}
-                    />
-                  ),
-                )}
-              </dl>
-            ) : null}
-            <div className="mt-4 flex justify-end">
-              <Button variant="secondary" onClick={() => setPanel(null)}>
-                Close
-              </Button>
-            </div>
+        <Modal title="Delivery stats" onClose={closePanel}>
+          <p className="text-sm text-[var(--ink-muted)]">
+            {panel.notification.title}
+          </p>
+          {statsQuery.isLoading ? (
+            <EmptyState title="Loading stats…" />
+          ) : statsQuery.isError ? (
+            <EmptyState
+              title="Couldn’t load stats"
+              description={
+                statsQuery.error instanceof ApiRequestError
+                  ? statsQuery.error.message
+                  : undefined
+              }
+            />
+          ) : statsQuery.data ? (
+            <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+              <Stat label="Sent" value={statsQuery.data.sent} />
+              <Stat label="Delivered" value={statsQuery.data.delivered} />
+              <Stat label="Opened" value={statsQuery.data.opened} />
+              <Stat label="Failed" value={statsQuery.data.failed} />
+            </dl>
+          ) : null}
+          <div className="mt-4 flex justify-end">
+            <Button variant="secondary" onClick={closePanel}>
+              Close
+            </Button>
           </div>
-        </div>
+        </Modal>
       ) : null}
     </>
   );
@@ -580,7 +460,34 @@ function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
       <dt className="text-xs text-[var(--ink-muted)]">{label}</dt>
-      <dd className="mt-0.5 text-lg font-semibold tabular-nums">{value}</dd>
+      <dd className="text-lg font-semibold tabular-nums">{value}</dd>
+    </div>
+  );
+}
+
+function Modal({
+  title,
+  onClose,
+  children,
+  wide,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-[var(--border)] bg-white p-6 shadow-xl ${wide ? "max-w-2xl" : "max-w-md"}`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <div className="mt-4">{children}</div>
+      </div>
     </div>
   );
 }

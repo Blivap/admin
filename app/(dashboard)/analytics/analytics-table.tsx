@@ -1,8 +1,5 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { formatISO, subDays } from "date-fns";
-import { useState } from "react";
 import {
   Bar,
   BarChart,
@@ -21,60 +18,32 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { ApiRequestError } from "@/lib/api/client";
-import { exportAnalyticsCsv, getAnalytics } from "@/lib/api/analytics";
-import { queryKeys } from "@/lib/query-keys";
-import type { AnalyticsExportType, AnalyticsParams } from "@/types";
+import type { AnalyticsParams } from "@/types";
 
 export function AnalyticsDashboard({
   initialParams,
 }: {
   initialParams: AnalyticsParams;
 }) {
-  const [params, setParams] = useState<AnalyticsParams>(initialParams);
-  const [draftFrom, setDraftFrom] = useState(
-    params.from ??
-      formatISO(subDays(new Date(), 30), { representation: "date" }),
-  );
-  const [draftTo, setDraftTo] = useState(
-    params.to ?? formatISO(new Date(), { representation: "date" }),
-  );
-  const [exportType, setExportType] =
-    useState<AnalyticsExportType>("overview");
-
-  const analyticsQuery = useQuery({
-    queryKey: queryKeys.analytics.dashboard(params),
-    queryFn: () => getAnalytics(params),
-  });
-
-  const exportMutation = useMutation({
-    mutationFn: () =>
-      exportAnalyticsCsv({
-        ...params,
-        type: exportType,
-      }),
-    onSuccess: (blob) => {
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `blivap-analytics-${exportType}-${params.from ?? "all"}-${params.to ?? "now"}.csv`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-    },
-  });
-
-  const data = analyticsQuery.data;
-
-  const requestChart =
-    data?.requestsOverTime.points.map((p) => ({
-      date: p.date,
-      requests: p.value,
-      matches:
-        data.matchesOverTime.points.find((m) => m.date === p.date)?.value ?? 0,
-      donations:
-        data.donationsOverTime.points.find((d) => d.date === p.date)?.value ??
-        0,
-    })) ?? [];
+  const {
+    draftFrom,
+    setDraftFrom,
+    draftTo,
+    setDraftTo,
+    groupBy,
+    setGroupBy,
+    applyFilters,
+    overviewQuery,
+    requestsQuery,
+    exportMutation,
+    donorChart,
+    matchTrend,
+    requestsOverTime,
+    anyLoading,
+    anyError,
+  } = useAnalytics(initialParams);
 
   return (
     <div className="space-y-6">
@@ -97,35 +66,30 @@ export function AnalyticsDashboard({
             onChange={(e) => setDraftTo(e.target.value)}
           />
         </div>
-        <Button
-          variant="secondary"
-          onClick={() => setParams({ from: draftFrom, to: draftTo })}
-        >
-          Apply range
-        </Button>
-        <div className="sm:ml-auto flex items-end gap-2">
-          <div>
-            <Label htmlFor="export-type">CSV export</Label>
-            <Select
-              id="export-type"
-              value={exportType}
-              onChange={(e) =>
-                setExportType(e.target.value as AnalyticsExportType)
-              }
-            >
-              <option value="overview">Overview</option>
-              <option value="requests">Requests</option>
-              <option value="donations">Donations</option>
-              <option value="users">Users</option>
-            </Select>
-          </div>
-          <Button
-            onClick={() => exportMutation.mutate()}
-            disabled={exportMutation.isPending}
+        <div>
+          <Label htmlFor="groupby">Donors group by</Label>
+          <Select
+            id="groupby"
+            value={groupBy}
+            onChange={(e) =>
+              setGroupBy(e.target.value as "region" | "bloodType" | "time")
+            }
           >
-            {exportMutation.isPending ? "Exporting…" : "Export CSV"}
-          </Button>
+            <option value="bloodType">Blood type</option>
+            <option value="region">Region</option>
+            <option value="time">Time</option>
+          </Select>
         </div>
+        <Button variant="secondary" onClick={applyFilters}>
+          Apply
+        </Button>
+        <Button
+          className="sm:ml-auto"
+          onClick={() => exportMutation.mutate()}
+          disabled={exportMutation.isPending}
+        >
+          {exportMutation.isPending ? "Exporting…" : "Export CSV"}
+        </Button>
       </div>
 
       {exportMutation.error instanceof ApiRequestError ? (
@@ -134,73 +98,65 @@ export function AnalyticsDashboard({
         </p>
       ) : null}
 
-      {analyticsQuery.isLoading ? (
+      {anyLoading ? (
         <EmptyState title="Loading analytics…" />
-      ) : analyticsQuery.isError ? (
+      ) : anyError ? (
         <EmptyState
           title="Couldn’t load analytics"
-          description={
-            analyticsQuery.error instanceof ApiRequestError
-              ? analyticsQuery.error.message
-              : undefined
-          }
+          description="One or more analytics endpoints failed. Check the API and retry."
         />
-      ) : data ? (
+      ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Metric
-              label="Total users"
-              value={data.overview.totalUsers}
-            />
-            <Metric
-              label="Total donors"
-              value={data.overview.totalDonors}
-            />
-            <Metric
-              label="Active requests"
-              value={data.overview.activeRequests}
-            />
-            <Metric
-              label="Matched today"
-              value={data.overview.matchedToday}
-            />
-            <Metric
-              label="Donations this month"
-              value={data.overview.donationsThisMonth}
-            />
-            <Metric
-              label="Pending verifications"
-              value={data.overview.verificationPending}
-            />
-          </div>
+          {overviewQuery.data ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <Metric
+                label="Donors registered"
+                value={overviewQuery.data.donorsRegistered}
+              />
+              <Metric
+                label="Fulfilled rate"
+                value={`${(overviewQuery.data.fulfilledRate * 100).toFixed(1)}%`}
+              />
+              <Metric
+                label="Unfulfilled rate"
+                value={`${(overviewQuery.data.unfulfilledRate * 100).toFixed(1)}%`}
+              />
+              <Metric
+                label="Avg match time"
+                value={`${Math.round(overviewQuery.data.avgMatchTimeMinutes)}m`}
+              />
+              <Metric
+                label="Active requests"
+                value={overviewQuery.data.activeRequests}
+              />
+            </div>
+          ) : null}
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <ChartCard title="Requests, matches & donations">
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={requestChart}>
+            <ChartCard title={`Donors by ${groupBy}`}>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={donorChart}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e6eb" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                   <Tooltip />
-                  <Legend />
+                  <Bar dataKey="count" fill="#b42318" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            <ChartCard title="Avg match time trend">
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={matchTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e6eb" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
                   <Line
                     type="monotone"
-                    dataKey="requests"
-                    stroke="#b42318"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="matches"
+                    dataKey="value"
+                    name="minutes"
                     stroke="#067647"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="donations"
-                    stroke="#175cd3"
                     strokeWidth={2}
                     dot={false}
                   />
@@ -208,32 +164,70 @@ export function AnalyticsDashboard({
               </ResponsiveContainer>
             </ChartCard>
 
-            <ChartCard title="Blood type distribution">
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={data.bloodTypeDistribution}>
+            <ChartCard title="Requests over time">
+              <ResponsiveContainer width="100%" height={260}>
+                <LineChart data={requestsOverTime}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e6eb" />
-                  <XAxis dataKey="bloodType" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#b42318" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    name="requests"
+                    stroke="#b42318"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             </ChartCard>
+
+            {requestsQuery.data ? (
+              <ChartCard title="Request outcomes">
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart
+                    data={[
+                      {
+                        label: "Fulfilled",
+                        count: requestsQuery.data.fulfilled,
+                      },
+                      {
+                        label: "Unfulfilled",
+                        count: requestsQuery.data.unfulfilled,
+                      },
+                      { label: "Expired", count: requestsQuery.data.expired },
+                      {
+                        label: "Cancelled",
+                        count: requestsQuery.data.cancelled,
+                      },
+                    ]}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e6eb" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="count" fill="#175cd3" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            ) : null}
           </div>
         </>
-      ) : null}
+      )}
     </div>
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-white px-4 py-3">
       <p className="text-xs font-medium uppercase tracking-wide text-[var(--ink-muted)]">
         {label}
       </p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-[var(--ink)]">
-        {value.toLocaleString()}
+      <p className="mt-1 text-2xl font-semibold tabular-nums">
+        {typeof value === "number" ? value.toLocaleString() : value}
       </p>
     </div>
   );
@@ -248,7 +242,7 @@ function ChartCard({
 }) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-white p-4">
-      <h2 className="mb-4 text-sm font-semibold text-[var(--ink)]">{title}</h2>
+      <h2 className="mb-4 text-sm font-semibold">{title}</h2>
       {children}
     </div>
   );

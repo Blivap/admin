@@ -1,57 +1,53 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Activity,
   Bell,
+  ClipboardList,
   Droplets,
+  FileText,
   LayoutDashboard,
   LogOut,
   Settings,
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { useMutation } from "@tanstack/react-query";
 
-import { logout } from "@/lib/api/auth";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useLogout } from "@/hooks/use-logout";
+import { cn } from "@/lib/utils";
 
 const navItems = [
+  { href: "/overview", label: "Overview", icon: LayoutDashboard },
   { href: "/users", label: "Users", icon: Users },
   { href: "/requests", label: "Blood Requests", icon: Droplets },
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/verifications", label: "Verifications", icon: ShieldCheck },
+  { href: "/cms", label: "Content / CMS", icon: FileText },
   { href: "/analytics", label: "Analytics", icon: Activity },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/audit", label: "Audit Log", icon: ClipboardList },
 ] as const;
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onSettled: () => {
-      router.replace("/login");
-      router.refresh();
-    },
-  });
+  const { mutation: logoutMutation } = useLogout();
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--sidebar)] text-[var(--sidebar-ink)]">
+    <aside className="flex h-full min-h-0 w-60 shrink-0 flex-col border-r border-white/10 bg-[var(--sidebar)] text-[var(--sidebar-ink)]">
       <div className="flex items-center gap-2.5 border-b border-white/10 px-5 py-5">
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--brand)] text-white">
-          <LayoutDashboard className="h-4 w-4" />
+          <Droplets className="h-4 w-4" />
         </div>
         <div>
           <p className="text-sm font-semibold tracking-tight">Blivap Admin</p>
-          <p className="text-[11px] text-white/50">Donor matching ops</p>
+          <p className="text-[11px] text-white/50">Ops console</p>
         </div>
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active =
             pathname === href || pathname.startsWith(`${href}/`);

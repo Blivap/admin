@@ -20,7 +20,7 @@ export function middleware(request: NextRequest) {
 
   if (hasSession && pathname === "/login") {
     const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = "/users";
+    dashboardUrl.pathname = "/overview";
     dashboardUrl.search = "";
     return NextResponse.redirect(dashboardUrl);
   }
@@ -30,6 +30,10 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    /*
+     * Gate page routes only. Do not run on /admin/* — those are proxied API
+     * calls (rewrites). Gating them caused POST /admin/auth/login → 307 /login.
+     */
+    "/((?!_next/static|_next/image|favicon.ico|admin/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

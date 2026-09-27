@@ -14,21 +14,20 @@ const defaultParams = { page: 1, pageSize: 20 };
 
 export default async function UsersPage() {
   const queryClient = new QueryClient();
-
   try {
     await queryClient.prefetchQuery({
       queryKey: queryKeys.users.list(defaultParams),
       queryFn: () => listUsers(defaultParams),
     });
   } catch {
-    // Client table retries via useQuery.
+    // Client retries.
   }
 
   return (
     <>
       <PageHeader
-        title="Users"
-        description="Search donors and requesters, review status, and suspend accounts when needed."
+        title="User Management"
+        description="Filter donors and requesters, open profiles, and run suspend / verify / merge actions."
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
         <UsersTable />
