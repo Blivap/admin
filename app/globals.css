@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f4f5f7;
+  --foreground: #15202b;
+  --ink: #15202b;
+  --ink-muted: #5b6775;
+  --ink-subtle: #8b95a1;
+  --border: #e2e6eb;
+  --surface: #fafbfc;
+  --surface-muted: #eef1f4;
+  --brand: #b42318;
+  --brand-hover: #912018;
+  --brand-soft: #fef3f2;
+  --danger: #b42318;
+  --danger-hover: #912018;
+  --sidebar: #1a2332;
+  --sidebar-ink: #f5f7fa;
+  --success: #067647;
+  --warning: #b54708;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th {
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+  color: var(--ink);
+  vertical-align: middle;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr:hover td {
+  background: var(--surface);
+}
