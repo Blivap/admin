@@ -19,12 +19,21 @@ export function buildQueryString(
 
 export function formatDate(value?: string | null) {
   if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("en-NG", {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(new Date(value));
+  }).format(date);
 }
 
-export function fullName(firstname: string, lastname: string) {
-  return `${firstname} ${lastname}`.trim();
+/** Safe short id for tables — never throws on null/undefined. */
+export function shortId(value?: string | null, length = 8) {
+  if (!value || typeof value !== "string") return null;
+  if (value.length <= length) return value;
+  return `${value.slice(0, length)}…`;
+}
+
+export function fullName(firstname?: string | null, lastname?: string | null) {
+  return `${firstname ?? ""} ${lastname ?? ""}`.trim();
 }

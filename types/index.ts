@@ -506,8 +506,8 @@ export type UpdateSettingsPayload = Partial<
 export interface AuditLogEntry {
   id: string;
   action: AuditActionType | string;
-  adminId: string;
-  adminEmail: string;
+  adminId?: string | null;
+  adminEmail?: string | null;
   adminName?: string | null;
   resourceType?: string | null;
   resourceId?: string | null;
