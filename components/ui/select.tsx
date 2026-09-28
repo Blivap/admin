@@ -114,7 +114,7 @@ export function Select({
         onBlur={onBlur as never}
         onClick={() => !disabled && setOpen((v) => !v)}
         className={cn(
-          "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-(--border) bg-white px-3 text-left text-sm transition-colors",
+          "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-(--border) bg-white px-3 text-left text-base transition-colors",
           "focus:border-(--brand) focus:outline-none focus:ring-2 focus:ring-(--brand)/20",
           disabled && "cursor-not-allowed opacity-50",
           open && "border-(--brand) ring-2 ring-(--brand)/20",
