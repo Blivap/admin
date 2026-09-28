@@ -19,6 +19,7 @@ import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
 import { TableShell } from "@/components/ui/table-shell";
 import { Textarea } from "@/components/ui/textarea";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { useVerifications } from "@/hooks/use-verifications";
 import { ApiRequestError } from "@/lib/api/client";
 import { formatDate } from "@/lib/utils";
@@ -68,15 +69,30 @@ export function VerificationsTable() {
         id: "user",
         header: "User",
         cell: ({ row }) => (
-          <div>
-            <p className="font-medium">{row.original.userName}</p>
-            <p className="text-xs text-(--ink-muted)">
-              {row.original.userEmail}
-            </p>
+          <div className="max-w-[14rem]">
+            <TruncatedText
+              text={row.original.userName}
+              className="font-medium"
+              maxWidthClass="max-w-[14rem]"
+            />
+            <TruncatedText
+              text={row.original.userEmail}
+              className="text-xs text-(--ink-muted)"
+              maxWidthClass="max-w-[14rem]"
+            />
           </div>
         ),
       },
-      { accessorKey: "documentType", header: "Document" },
+      {
+        accessorKey: "documentType",
+        header: "Document",
+        cell: ({ getValue }) => (
+          <TruncatedText
+            text={getValue<string>()}
+            maxWidthClass="max-w-[8rem]"
+          />
+        ),
+      },
       {
         accessorKey: "status",
         header: "Status",
@@ -100,7 +116,7 @@ export function VerificationsTable() {
             return <span className="text-xs text-(--ink-subtle)">—</span>;
           }
           return (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-nowrap gap-1">
               <Button
                 size="sm"
                 disabled={approveMutation.isPending}
@@ -284,12 +300,18 @@ export function VerificationsTable() {
                 {(rejectMutation.error || flagMutation.error)?.message}
               </p>
             ) : null}
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button type="button" variant="secondary" onClick={closePanel}>
+            <div className="flex flex-col-reverse gap-2 border-t border-(--border) pt-4 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full sm:w-auto"
+                onClick={closePanel}
+              >
                 Cancel
               </Button>
               <Button
                 type="submit"
+                className="w-full sm:w-auto"
                 variant={panel.type === "reject" ? "danger" : "primary"}
                 disabled={rejectMutation.isPending || flagMutation.isPending}
               >

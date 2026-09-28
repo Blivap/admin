@@ -19,6 +19,7 @@ import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
 import { TableShell } from "@/components/ui/table-shell";
 import { Textarea } from "@/components/ui/textarea";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { useRequests } from "@/hooks/use-requests";
 import { ApiRequestError } from "@/lib/api/client";
 import { BLOOD_TYPES } from "@/lib/constants";
@@ -93,12 +94,14 @@ export function RequestsTable() {
         cell: ({ row }) => (
           <button
             type="button"
-            className="text-left"
+            className="max-w-[12rem] text-left"
             onClick={() => openRequest(row.original.id)}
           >
-            <p className="font-medium text-(--brand) hover:underline">
-              {row.original.requesterName}
-            </p>
+            <TruncatedText
+              text={row.original.requesterName}
+              className="font-medium text-(--brand) hover:underline"
+              maxWidthClass="max-w-[12rem]"
+            />
             <p className="text-xs text-(--ink-muted)">
               {row.original.id.slice(0, 8)}…
             </p>
@@ -129,14 +132,26 @@ export function RequestsTable() {
       {
         id: "region",
         header: "Region",
-        cell: ({ row }) =>
-          [row.original.city, row.original.region].filter(Boolean).join(", ") ||
-          "—",
+        cell: ({ row }) => (
+          <TruncatedText
+            text={
+              [row.original.city, row.original.region]
+                .filter(Boolean)
+                .join(", ") || "—"
+            }
+            maxWidthClass="max-w-[10rem]"
+          />
+        ),
       },
       {
         id: "matched",
         header: "Donor",
-        cell: ({ row }) => row.original.matchedDonorName ?? "—",
+        cell: ({ row }) => (
+          <TruncatedText
+            text={row.original.matchedDonorName ?? "—"}
+            maxWidthClass="max-w-[10rem]"
+          />
+        ),
       },
       {
         accessorKey: "createdAt",
@@ -149,7 +164,7 @@ export function RequestsTable() {
         cell: ({ row }) => {
           const request = row.original;
           return (
-            <div className="flex max-w-[14rem] flex-wrap gap-1 sm:max-w-none">
+            <div className="flex flex-nowrap gap-1">
               <Button
                 size="sm"
                 variant="secondary"
@@ -410,8 +425,12 @@ export function RequestsTable() {
                 <span className="text-(--ink-muted)">Notes:</span>{" "}
                 {detailQuery.data.notes || "—"}
               </p>
-              <div className="flex justify-end pt-2">
-                <Button variant="secondary" onClick={clearRequest}>
+              <div className="border-t border-(--border) pt-4">
+                <Button
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                  onClick={clearRequest}
+                >
                   Close
                 </Button>
               </div>
@@ -438,7 +457,7 @@ export function RequestsTable() {
           ) : (matchesQuery.data?.length ?? 0) === 0 ? (
             <EmptyState title="No match events yet" />
           ) : (
-            <div className="max-h-96 overflow-y-auto">
+            <div className="max-h-96 overflow-x-auto overflow-y-auto">
               <table>
                 <thead>
                   <tr>
@@ -471,8 +490,12 @@ export function RequestsTable() {
               </table>
             </div>
           )}
-          <div className="mt-4 flex justify-end">
-            <Button variant="secondary" onClick={clearRequest}>
+          <div className="mt-4 border-t border-(--border) pt-4">
+            <Button
+              variant="secondary"
+              className="w-full sm:w-auto"
+              onClick={clearRequest}
+            >
               Close
             </Button>
           </div>

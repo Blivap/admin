@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/skeletons";
 import { TableShell } from "@/components/ui/table-shell";
 import { Textarea } from "@/components/ui/textarea";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { useUsers } from "@/hooks/use-users";
 import { ApiRequestError } from "@/lib/api/client";
 import { BLOOD_TYPES } from "@/lib/constants";
@@ -86,15 +87,19 @@ export function UsersTable() {
         cell: ({ row }) => (
           <button
             type="button"
-            className="text-left"
+            className="max-w-[14rem] text-left"
             onClick={() => openUser(row.original.id)}
           >
-            <p className="font-medium text-(--brand) hover:underline">
-              {fullName(row.original.firstname, row.original.lastname)}
-            </p>
-            <p className="text-xs text-(--ink-muted)">
-              {row.original.email}
-            </p>
+            <TruncatedText
+              text={fullName(row.original.firstname, row.original.lastname)}
+              className="font-medium text-(--brand) hover:underline"
+              maxWidthClass="max-w-[14rem]"
+            />
+            <TruncatedText
+              text={row.original.email}
+              className="text-xs text-(--ink-muted)"
+              maxWidthClass="max-w-[14rem]"
+            />
           </button>
         ),
       },
@@ -114,10 +119,16 @@ export function UsersTable() {
       {
         id: "location",
         header: "Location",
-        cell: ({ row }) =>
-          [row.original.city, row.original.state, row.original.region]
-            .filter(Boolean)
-            .join(", ") || "—",
+        cell: ({ row }) => (
+          <TruncatedText
+            text={
+              [row.original.city, row.original.state, row.original.region]
+                .filter(Boolean)
+                .join(", ") || "—"
+            }
+            maxWidthClass="max-w-[12rem]"
+          />
+        ),
       },
       {
         accessorKey: "status",
@@ -148,7 +159,7 @@ export function UsersTable() {
         cell: ({ row }) => {
           const user = row.original;
           return (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-nowrap gap-1">
               <Button
                 size="sm"
                 variant="secondary"
@@ -442,10 +453,11 @@ export function UsersTable() {
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-2 border-t border-(--border) pt-4">
+              <div className="flex flex-col gap-2 border-t border-(--border) pt-4 sm:flex-row sm:flex-wrap">
                 {!user.ninVerified ? (
                   <Button
                     size="sm"
+                    className="w-full sm:w-auto"
                     disabled={verifyMutation.isPending}
                     onClick={() => verifyMutation.mutate(user.id)}
                   >
@@ -455,6 +467,7 @@ export function UsersTable() {
                 <Button
                   size="sm"
                   variant="secondary"
+                  className="w-full sm:w-auto"
                   disabled={resetPasswordMutation.isPending}
                   onClick={() => resetPasswordMutation.mutate(user.id)}
                 >
@@ -465,6 +478,7 @@ export function UsersTable() {
                 <Button
                   size="sm"
                   variant="secondary"
+                  className="w-full sm:w-auto"
                   onClick={() => {
                     mergeForm.reset({ targetUserId: "", reason: "" });
                     setPanel({
@@ -479,6 +493,7 @@ export function UsersTable() {
                   <Button
                     size="sm"
                     variant="secondary"
+                    className="w-full sm:w-auto"
                     disabled={reactivateMutation.isPending}
                     onClick={() => reactivateMutation.mutate(user.id)}
                   >
@@ -488,6 +503,7 @@ export function UsersTable() {
                   <Button
                     size="sm"
                     variant="danger"
+                    className="w-full sm:w-auto"
                     onClick={() => {
                       suspendForm.reset({ reason: "" });
                       setPanel({
@@ -499,14 +515,6 @@ export function UsersTable() {
                     Suspend
                   </Button>
                 )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="ml-auto"
-                  onClick={closeActionPanel}
-                >
-                  Close
-                </Button>
               </div>
               {resetPasswordMutation.isSuccess ? (
                 <p className="text-sm text-emerald-700">
@@ -558,13 +566,19 @@ export function UsersTable() {
                 {suspendMutation.error.message}
               </p>
             ) : null}
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button type="button" variant="secondary" onClick={closeActionPanel}>
+            <div className="flex flex-col-reverse gap-2 border-t border-(--border) pt-4 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full sm:w-auto"
+                onClick={closeActionPanel}
+              >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 variant="danger"
+                className="w-full sm:w-auto"
                 disabled={suspendMutation.isPending}
               >
                 {suspendMutation.isPending ? "Suspending…" : "Confirm"}
@@ -615,11 +629,20 @@ export function UsersTable() {
                 {mergeMutation.error.message}
               </p>
             ) : null}
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button type="button" variant="secondary" onClick={closeActionPanel}>
+            <div className="flex flex-col-reverse gap-2 border-t border-(--border) pt-4 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full sm:w-auto"
+                onClick={closeActionPanel}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={mergeMutation.isPending}>
+              <Button
+                type="submit"
+                className="w-full sm:w-auto"
+                disabled={mergeMutation.isPending}
+              >
                 {mergeMutation.isPending ? "Merging…" : "Merge"}
               </Button>
             </div>

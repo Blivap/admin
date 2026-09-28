@@ -14,7 +14,9 @@ export function TableShell({
           {toolbar}
         </div>
       ) : null}
-      <div className="-mx-px overflow-x-auto overscroll-x-contain">{children}</div>
+      <div className="-mx-px overflow-x-auto overscroll-x-contain [scrollbar-gutter:stable]">
+        {children}
+      </div>
       {footer}
     </div>
   );

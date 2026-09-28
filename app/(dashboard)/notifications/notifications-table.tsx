@@ -20,6 +20,7 @@ import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
 import { TableShell } from "@/components/ui/table-shell";
 import { Textarea } from "@/components/ui/textarea";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { useNotifications } from "@/hooks/use-notifications";
 import { ApiRequestError } from "@/lib/api/client";
 import { BLOOD_TYPES } from "@/lib/constants";
@@ -76,11 +77,17 @@ export function NotificationsTable() {
         id: "message",
         header: "Message",
         cell: ({ row }) => (
-          <div>
-            <p className="font-medium">{row.original.title}</p>
-            <p className="line-clamp-1 text-xs text-(--ink-muted)">
-              {row.original.body}
-            </p>
+          <div className="max-w-[18rem]">
+            <TruncatedText
+              text={row.original.title}
+              className="font-medium"
+              maxWidthClass="max-w-[18rem]"
+            />
+            <TruncatedText
+              text={row.original.body}
+              className="text-xs text-(--ink-muted)"
+              maxWidthClass="max-w-[18rem]"
+            />
           </div>
         ),
       },
@@ -88,9 +95,11 @@ export function NotificationsTable() {
         accessorKey: "kind",
         header: "Kind",
         cell: ({ getValue }) => (
-          <span className="text-xs">
-            {getValue<string>().replace(/_/g, " ")}
-          </span>
+          <TruncatedText
+            text={getValue<string>().replace(/_/g, " ")}
+            className="text-xs"
+            maxWidthClass="max-w-[9rem]"
+          />
         ),
       },
       {
@@ -405,11 +414,20 @@ export function NotificationsTable() {
                 {broadcastMutation.error.message}
               </p>
             ) : null}
-            <div className="flex flex-col-reverse gap-2 sm:col-span-2 sm:flex-row sm:justify-end">
-              <Button type="button" variant="secondary" onClick={closePanel}>
+            <div className="flex flex-col-reverse gap-2 border-t border-(--border) pt-4 sm:col-span-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full sm:w-auto"
+                onClick={closePanel}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={broadcastMutation.isPending}>
+              <Button
+                type="submit"
+                className="w-full sm:w-auto"
+                disabled={broadcastMutation.isPending}
+              >
                 {broadcastMutation.isPending ? "Sending…" : "Send"}
               </Button>
             </div>
@@ -449,11 +467,20 @@ export function NotificationsTable() {
                 {dmMutation.error.message}
               </p>
             ) : null}
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button type="button" variant="secondary" onClick={closePanel}>
+            <div className="flex flex-col-reverse gap-2 border-t border-(--border) pt-4 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full sm:w-auto"
+                onClick={closePanel}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={dmMutation.isPending}>
+              <Button
+                type="submit"
+                className="w-full sm:w-auto"
+                disabled={dmMutation.isPending}
+              >
                 {dmMutation.isPending ? "Sending…" : "Send DM"}
               </Button>
             </div>
@@ -483,8 +510,12 @@ export function NotificationsTable() {
               <Stat label="Failed" value={statsQuery.data.failed} />
             </dl>
           ) : null}
-          <div className="mt-4 flex justify-end">
-            <Button variant="secondary" onClick={clearStats}>
+          <div className="mt-4 border-t border-(--border) pt-4">
+            <Button
+              variant="secondary"
+              className="w-full sm:ml-auto sm:flex sm:w-auto"
+              onClick={clearStats}
+            >
               Close
             </Button>
           </div>

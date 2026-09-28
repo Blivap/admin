@@ -17,6 +17,7 @@ import { QueryError } from "@/components/ui/query-error";
 import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
 import { TableShell } from "@/components/ui/table-shell";
+import { TruncatedText } from "@/components/ui/truncated-text";
 import { AUDIT_ACTION_OPTIONS, useAudit } from "@/hooks/use-audit";
 import { formatDate, shortId } from "@/lib/utils";
 import type { AuditLogEntry } from "@/types";
@@ -44,9 +45,11 @@ export function AuditTable() {
         accessorKey: "action",
         header: "Action",
         cell: ({ getValue }) => (
-          <code className="rounded bg-(--surface-muted) px-1.5 py-0.5 text-xs">
-            {getValue<string>() || "—"}
-          </code>
+          <TruncatedText
+            text={getValue<string>() || "—"}
+            className="rounded bg-(--surface-muted) px-1.5 py-0.5 font-mono text-xs"
+            maxWidthClass="max-w-[12rem]"
+          />
         ),
       },
       {
@@ -64,10 +67,18 @@ export function AuditTable() {
               : shortId(row.original.adminId);
 
           return (
-            <div>
-              <p className="font-medium">{name}</p>
+            <div className="max-w-[12rem]">
+              <TruncatedText
+                text={name}
+                className="font-medium"
+                maxWidthClass="max-w-[12rem]"
+              />
               {subtitle ? (
-                <p className="text-xs text-(--ink-muted)">{subtitle}</p>
+                <TruncatedText
+                  text={subtitle}
+                  className="text-xs text-(--ink-muted)"
+                  maxWidthClass="max-w-[12rem]"
+                />
               ) : null}
             </div>
           );
@@ -79,9 +90,15 @@ export function AuditTable() {
         cell: ({ row }) => {
           const type = row.original.resourceType;
           const id = shortId(row.original.resourceId);
-          if (!type && !id) return "—";
-          if (type && id) return `${type}:${id}`;
-          return type || id || "—";
+          const label =
+            !type && !id
+              ? "—"
+              : type && id
+                ? `${type}:${id}`
+                : type || id || "—";
+          return (
+            <TruncatedText text={label} maxWidthClass="max-w-[12rem]" />
+          );
         },
       },
     ],
