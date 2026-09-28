@@ -14,6 +14,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Modal } from "@/components/ui/modal";
 import { Pagination } from "@/components/ui/pagination";
 import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
@@ -404,7 +405,7 @@ export function NotificationsTable() {
                 {broadcastMutation.error.message}
               </p>
             ) : null}
-            <div className="flex justify-end gap-2 sm:col-span-2">
+            <div className="flex flex-col-reverse gap-2 sm:col-span-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="secondary" onClick={closePanel}>
                 Cancel
               </Button>
@@ -448,7 +449,7 @@ export function NotificationsTable() {
                 {dmMutation.error.message}
               </p>
             ) : null}
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="secondary" onClick={closePanel}>
                 Cancel
               </Button>
@@ -498,33 +499,6 @@ function Stat({ label, value }: { label: string; value: number }) {
     <div className="rounded-md border border-(--border) bg-(--surface) px-3 py-2">
       <dt className="text-xs text-(--ink-muted)">{label}</dt>
       <dd className="text-lg font-semibold tabular-nums">{value}</dd>
-    </div>
-  );
-}
-
-function Modal({
-  title,
-  onClose,
-  children,
-  wide,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-  wide?: boolean;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-    >
-      <div
-        className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-(--border) bg-white p-6 shadow-xl ${wide ? "max-w-2xl" : "max-w-md"}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <div className="mt-4">{children}</div>
-      </div>
     </div>
   );
 }

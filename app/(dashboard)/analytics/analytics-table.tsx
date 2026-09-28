@@ -59,8 +59,8 @@ export function AnalyticsDashboard({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 rounded-lg border border-(--border) bg-white p-4 sm:flex-row sm:items-end">
-        <div>
+      <div className="flex flex-col gap-3 rounded-lg border border-(--border) bg-white p-3 sm:flex-row sm:flex-wrap sm:items-end sm:p-4">
+        <div className="w-full sm:w-auto">
           <Label htmlFor="from">From</Label>
           <DatePicker
             id="from"
@@ -68,7 +68,7 @@ export function AnalyticsDashboard({
             onChange={(e) => setDraftFrom(e.target.value)}
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto">
           <Label htmlFor="to">To</Label>
           <DatePicker
             id="to"
@@ -76,7 +76,7 @@ export function AnalyticsDashboard({
             onChange={(e) => setDraftTo(e.target.value)}
           />
         </div>
-        <div>
+        <div className="w-full sm:w-auto sm:min-w-40">
           <Label htmlFor="groupby">Donors group by</Label>
           <Select
             id="groupby"
@@ -90,17 +90,19 @@ export function AnalyticsDashboard({
             <option value="time">Time</option>
           </Select>
         </div>
-        <Button variant="secondary" onClick={applyFilters}>
-          Apply
-        </Button>
-        <ReloadButton onReload={reload} loading={reloading} />
-        <Button
-          className="sm:ml-auto"
-          onClick={() => exportMutation.mutate()}
-          disabled={exportMutation.isPending}
-        >
-          {exportMutation.isPending ? "Exporting…" : "Export CSV"}
-        </Button>
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          <Button variant="secondary" onClick={applyFilters}>
+            Apply
+          </Button>
+          <ReloadButton onReload={reload} loading={reloading} />
+          <Button
+            className="sm:ml-auto"
+            onClick={() => exportMutation.mutate()}
+            disabled={exportMutation.isPending}
+          >
+            {exportMutation.isPending ? "Exporting…" : "Export CSV"}
+          </Button>
+        </div>
       </div>
 
       {exportMutation.error instanceof ApiRequestError ? (

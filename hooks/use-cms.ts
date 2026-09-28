@@ -2,12 +2,13 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { getCmsContent, updateCmsContent } from "@/lib/api/cms";
 import { queryKeys } from "@/lib/query-keys";
+import type { CmsContent } from "@/types";
 
 export const cmsSchema = z.object({
   landingSections: z.array(
@@ -46,8 +47,18 @@ export function newCmsId() {
   return `tmp_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function toFormValues(data: CmsContent): CmsFormValues {
+  return {
+    landingSections: data.landingSections ?? [],
+    faqs: data.faqs ?? [],
+    testimonials: data.testimonials ?? [],
+  };
+}
+
 export function useCms() {
   const queryClient = useQueryClient();
+  const hydratedRef = useRef(false);
+
   const cmsQuery = useQuery({
     queryKey: queryKeys.cms.all,
     queryFn: getCmsContent,
@@ -68,20 +79,27 @@ export function useCms() {
     name: "testimonials",
   });
 
+  // Hydrate from API once per mount — never wipe in-progress edits/adds.
   useEffect(() => {
-    if (cmsQuery.data) {
-      form.reset({
-        landingSections: cmsQuery.data.landingSections,
-        faqs: cmsQuery.data.faqs,
-        testimonials: cmsQuery.data.testimonials,
-      });
-    }
+    if (!cmsQuery.data || hydratedRef.current) return;
+    form.reset(toFormValues(cmsQuery.data));
+    hydratedRef.current = true;
   }, [cmsQuery.data, form]);
+
+  const reloadFromApi = async () => {
+    const result = await cmsQuery.refetch();
+    if (result.data) {
+      form.reset(toFormValues(result.data));
+      hydratedRef.current = true;
+    }
+  };
 
   const saveMutation = useMutation({
     mutationFn: updateCmsContent,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.cms.all });
+    onSuccess: async (data) => {
+      form.reset(toFormValues(data));
+      hydratedRef.current = true;
+      queryClient.setQueryData(queryKeys.cms.all, data);
     },
   });
 
@@ -92,5 +110,6 @@ export function useCms() {
     faqs,
     testimonials,
     saveMutation,
+    reloadFromApi,
   };
 }

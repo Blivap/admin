@@ -29,7 +29,7 @@ export function SettingsTable() {
   }
 
   return (
-    <div className="max-w-xl rounded-lg border border-(--border) bg-white p-6">
+    <div className="max-w-xl rounded-lg border border-(--border) bg-white p-4 sm:p-6">
       <div className="mb-5 flex justify-end">
         <ReloadButton
           onReload={() => settingsQuery.refetch()}

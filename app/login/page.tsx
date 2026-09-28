@@ -63,16 +63,20 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-(--sidebar) px-4">
+    <main className="relative flex min-h-dvh w-full items-center justify-center bg-(--sidebar) px-4 py-8">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-40"
+        className="pointer-events-none fixed inset-0 bg-(--sidebar)"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 opacity-40"
         style={{
           background:
             "radial-gradient(ellipse 80% 50% at 20% 20%, rgba(180,35,24,0.35), transparent), radial-gradient(ellipse 60% 40% at 80% 80%, rgba(255,255,255,0.06), transparent)",
         }}
       />
-      <div className="relative w-full max-w-md rounded-xl border border-white/10 bg-white p-8 shadow-2xl shadow-black/30">
+      <div className="relative w-full max-w-md rounded-xl border border-white/10 bg-white p-6 shadow-2xl shadow-black/30 sm:p-8">
         <div className="mb-8 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-(--brand) text-white">
             <Droplets className="h-5 w-5" />

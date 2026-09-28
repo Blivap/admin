@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Modal } from "@/components/ui/modal";
 import { Pagination } from "@/components/ui/pagination";
 import { QueryError } from "@/components/ui/query-error";
 import { ReloadButton } from "@/components/ui/reload-button";
@@ -197,7 +198,7 @@ export function UsersTable() {
       <TableShell
         toolbar={
           <>
-            <div className="min-w-[160px] flex-1">
+            <div className="w-full min-w-0 flex-1 sm:min-w-[160px]">
               <Label htmlFor="user-query">Search</Label>
               <Input
                 id="user-query"
@@ -270,7 +271,7 @@ export function UsersTable() {
               <Label htmlFor="user-location">Location</Label>
               <Input
                 id="user-location"
-                placeholder="City / region"
+                placeholder="City, state, area…"
                 value={draftLocation}
                 onChange={(e) => setDraftLocation(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && applyFilters()}
@@ -557,7 +558,7 @@ export function UsersTable() {
                 {suspendMutation.error.message}
               </p>
             ) : null}
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="secondary" onClick={closeActionPanel}>
                 Cancel
               </Button>
@@ -614,7 +615,7 @@ export function UsersTable() {
                 {mergeMutation.error.message}
               </p>
             ) : null}
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="secondary" onClick={closeActionPanel}>
                 Cancel
               </Button>
@@ -634,33 +635,6 @@ function Field({ label, value }: { label: string; value: string }) {
     <div>
       <p className="text-xs text-(--ink-muted)">{label}</p>
       <p className="font-medium text-(--ink)">{value}</p>
-    </div>
-  );
-}
-
-function Modal({
-  title,
-  onClose,
-  children,
-  wide,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-  wide?: boolean;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-    >
-      <div
-        className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-(--border) bg-white p-6 shadow-xl ${wide ? "max-w-3xl" : "max-w-md"}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-(--ink)">{title}</h2>
-        <div className="mt-4">{children}</div>
-      </div>
     </div>
   );
 }

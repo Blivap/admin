@@ -26,11 +26,10 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export interface DatePickerProps
-  extends Omit<
-    InputHTMLAttributes<HTMLInputElement>,
-    "type" | "value" | "onChange" | "defaultValue"
-  > {
+export interface DatePickerProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "type" | "value" | "onChange" | "defaultValue"
+> {
   value?: string;
   defaultValue?: string;
   onChange?: (event: { target: { value: string; name?: string } }) => void;
@@ -77,10 +76,7 @@ export function DatePicker({
   const rootRef = useRef<HTMLDivElement>(null);
 
   const isControlled = value !== undefined;
-  const initial = parseValue(
-    String(value ?? defaultValue ?? ""),
-    includeTime,
-  );
+  const initial = parseValue(String(value ?? defaultValue ?? ""), includeTime);
 
   const [open, setOpen] = useState(false);
   const [internalValue, setInternalValue] = useState(
@@ -177,7 +173,7 @@ export function DatePicker({
         <div
           role="dialog"
           aria-label="Choose date"
-          className="absolute z-50 mt-1 w-[280px] rounded-lg border border-(--border) bg-white p-3 shadow-lg shadow-black/10"
+          className="absolute z-50 mt-1 w-[min(17.5rem,calc(100vw-2rem))] rounded-lg border border-(--border) bg-white p-3 shadow-lg shadow-black/10"
         >
           <div className="mb-3 flex items-center justify-between">
             <button
@@ -227,8 +223,11 @@ export function DatePicker({
                   className={cn(
                     "flex h-8 w-full items-center justify-center rounded-md text-sm transition-colors",
                     !inMonth && "text-(--ink-subtle)",
-                    inMonth && !active && "text-(--ink) hover:bg-(--surface-muted)",
-                    active && "bg-(--brand) font-medium text-white hover:bg-(--brand-hover)",
+                    inMonth &&
+                      !active &&
+                      "text-(--ink) hover:bg-(--surface-muted)",
+                    active &&
+                      "bg-(--brand) font-medium text-white hover:bg-(--brand-hover)",
                     today && !active && "ring-1 ring-(--brand)/40",
                   )}
                 >

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Modal, ModalActions } from "@/components/ui/modal";
 import { Pagination } from "@/components/ui/pagination";
 import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
@@ -148,7 +149,7 @@ export function RequestsTable() {
         cell: ({ row }) => {
           const request = row.original;
           return (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex max-w-[14rem] flex-wrap gap-1 sm:max-w-none">
               <Button
                 size="sm"
                 variant="secondary"
@@ -238,7 +239,7 @@ export function RequestsTable() {
       <TableShell
         toolbar={
           <>
-            <div className="min-w-[160px] flex-1">
+            <div className="w-full min-w-0 flex-1 sm:min-w-[160px]">
               <Label htmlFor="req-query">Search</Label>
               <Input
                 id="req-query"
@@ -598,53 +599,5 @@ export function RequestsTable() {
         </Modal>
       ) : null}
     </>
-  );
-}
-
-function Modal({
-  title,
-  onClose,
-  children,
-  wide,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-  wide?: boolean;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-    >
-      <div
-        className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-(--border) bg-white p-6 shadow-xl ${wide ? "max-w-3xl" : "max-w-md"}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <div className="mt-4">{children}</div>
-      </div>
-    </div>
-  );
-}
-
-function ModalActions({
-  onCancel,
-  pending,
-  label,
-}: {
-  onCancel: () => void;
-  pending: boolean;
-  label: string;
-}) {
-  return (
-    <div className="flex justify-end gap-2">
-      <Button type="button" variant="secondary" onClick={onCancel}>
-        Cancel
-      </Button>
-      <Button type="submit" disabled={pending}>
-        {pending ? "Saving…" : label}
-      </Button>
-    </div>
   );
 }

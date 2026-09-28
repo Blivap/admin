@@ -35,12 +35,19 @@ interface ApiPlatformUser {
   dateOfBirth?: string | null;
 }
 
+interface ApiUserLocation {
+  country?: string | null;
+  state?: string | null;
+  city?: string | null;
+  area?: string | null;
+}
+
 /** One row in GET /admin/users. */
 interface ApiAdminUserRow {
   user: ApiPlatformUser;
   status: UserStatus;
   bloodType?: BloodType | null;
-  location?: string | null;
+  location?: ApiUserLocation | string | null;
   isDonor?: boolean;
   isRequester?: boolean;
 }
@@ -73,8 +80,33 @@ function mapPlatformRole(
   return "none";
 }
 
+function mapLocation(location: ApiAdminUserRow["location"]): {
+  city: string | null;
+  state: string | null;
+  region: string | null;
+} {
+  if (!location) {
+    return { city: null, state: null, region: null };
+  }
+
+  if (typeof location === "string") {
+    return { city: null, state: null, region: location };
+  }
+
+  const city = location.city?.trim() || location.area?.trim() || null;
+  const state = location.state?.trim() || null;
+  const region =
+    location.country?.trim() ||
+    (location.area?.trim() && location.area.trim() !== city
+      ? location.area.trim()
+      : null);
+
+  return { city, state, region };
+}
+
 function mapAdminUserRow(row: ApiAdminUserRow): AdminUserListItem {
   const { user } = row;
+  const location = mapLocation(row.location);
   return {
     id: user.id,
     firstname: user.firstname,
@@ -84,9 +116,9 @@ function mapAdminUserRow(row: ApiAdminUserRow): AdminUserListItem {
     bloodType: row.bloodType ?? null,
     role: mapPlatformRole(row.isDonor, row.isRequester),
     status: row.status,
-    city: null,
-    state: null,
-    region: row.location ?? null,
+    city: location.city,
+    state: location.state,
+    region: location.region,
     ninVerified: Boolean(user.nationalIdentificationNumberVerified),
     createdAt: user.createdAt,
     lastActiveAt: user.lastActive ?? null,

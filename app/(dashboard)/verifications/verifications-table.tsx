@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Modal } from "@/components/ui/modal";
 import { Pagination } from "@/components/ui/pagination";
 import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
@@ -148,7 +149,7 @@ export function VerificationsTable() {
       <TableShell
         toolbar={
           <>
-            <div className="min-w-[180px] flex-1">
+            <div className="w-full min-w-0 flex-1 sm:min-w-[180px]">
               <Label htmlFor="ver-query">Search</Label>
               <Input
                 id="ver-query"
@@ -243,60 +244,60 @@ export function VerificationsTable() {
       </TableShell>
 
       {panel ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-lg border border-(--border) bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">
-              {panel.type === "reject" ? "Reject verification" : "Flag account"}
-            </h2>
-            <p className="mt-1 text-sm text-(--ink-muted)">
-              {panel.item.userName} — {panel.item.documentType}
-            </p>
-            <form
-              className="mt-4 space-y-4"
-              onSubmit={reasonForm.handleSubmit((values) => {
-                if (panel.type === "reject") {
-                  rejectMutation.mutate({
-                    id: panel.item.id,
-                    reason: values.reason,
-                  });
-                } else {
-                  flagMutation.mutate({
-                    id: panel.item.id,
-                    reason: values.reason,
-                  });
-                }
-              })}
-            >
-              <div>
-                <Label htmlFor="reason">Reason</Label>
-                <Textarea id="reason" {...reasonForm.register("reason")} />
-                {reasonForm.formState.errors.reason ? (
-                  <p className="mt-1 text-xs text-(--danger)">
-                    {reasonForm.formState.errors.reason.message}
-                  </p>
-                ) : null}
-              </div>
-              {(rejectMutation.error || flagMutation.error) instanceof
-              ApiRequestError ? (
-                <p className="text-sm text-(--danger)">
-                  {(rejectMutation.error || flagMutation.error)?.message}
+        <Modal
+          title={
+            panel.type === "reject" ? "Reject verification" : "Flag account"
+          }
+          onClose={closePanel}
+        >
+          <p className="mb-4 text-sm text-(--ink-muted)">
+            {panel.item.userName} — {panel.item.documentType}
+          </p>
+          <form
+            className="space-y-4"
+            onSubmit={reasonForm.handleSubmit((values) => {
+              if (panel.type === "reject") {
+                rejectMutation.mutate({
+                  id: panel.item.id,
+                  reason: values.reason,
+                });
+              } else {
+                flagMutation.mutate({
+                  id: panel.item.id,
+                  reason: values.reason,
+                });
+              }
+            })}
+          >
+            <div>
+              <Label htmlFor="reason">Reason</Label>
+              <Textarea id="reason" {...reasonForm.register("reason")} />
+              {reasonForm.formState.errors.reason ? (
+                <p className="mt-1 text-xs text-(--danger)">
+                  {reasonForm.formState.errors.reason.message}
                 </p>
               ) : null}
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="secondary" onClick={closePanel}>
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant={panel.type === "reject" ? "danger" : "primary"}
-                  disabled={rejectMutation.isPending || flagMutation.isPending}
-                >
-                  Confirm
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            {(rejectMutation.error || flagMutation.error) instanceof
+            ApiRequestError ? (
+              <p className="text-sm text-(--danger)">
+                {(rejectMutation.error || flagMutation.error)?.message}
+              </p>
+            ) : null}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="secondary" onClick={closePanel}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant={panel.type === "reject" ? "danger" : "primary"}
+                disabled={rejectMutation.isPending || flagMutation.isPending}
+              >
+                Confirm
+              </Button>
+            </div>
+          </form>
+        </Modal>
       ) : null}
     </>
   );
