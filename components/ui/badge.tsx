@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils";
 
 const tones = {
-  neutral: "bg-[var(--surface-muted)] text-[var(--ink-muted)]",
+  neutral: "bg-(--surface-muted) text-(--ink-muted)",
   success: "bg-emerald-50 text-emerald-800",
   warning: "bg-amber-50 text-amber-800",
   danger: "bg-rose-50 text-rose-800",
   info: "bg-sky-50 text-sky-800",
-  brand: "bg-[var(--brand-soft)] text-[var(--brand)]",
+  brand: "bg-(--brand-soft) text-(--brand)",
 } as const;
 
 export function Badge({

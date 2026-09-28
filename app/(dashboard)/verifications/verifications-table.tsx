@@ -69,7 +69,7 @@ export function VerificationsTable() {
         cell: ({ row }) => (
           <div>
             <p className="font-medium">{row.original.userName}</p>
-            <p className="text-xs text-[var(--ink-muted)]">
+            <p className="text-xs text-(--ink-muted)">
               {row.original.userEmail}
             </p>
           </div>
@@ -96,7 +96,7 @@ export function VerificationsTable() {
         cell: ({ row }) => {
           const item = row.original;
           if (item.status !== "pending" && item.status !== "flagged") {
-            return <span className="text-xs text-[var(--ink-subtle)]">—</span>;
+            return <span className="text-xs text-(--ink-subtle)">—</span>;
           }
           return (
             <div className="flex flex-wrap gap-1">
@@ -244,11 +244,11 @@ export function VerificationsTable() {
 
       {panel ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-lg border border-[var(--border)] bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-lg border border-(--border) bg-white p-6 shadow-xl">
             <h2 className="text-lg font-semibold">
               {panel.type === "reject" ? "Reject verification" : "Flag account"}
             </h2>
-            <p className="mt-1 text-sm text-[var(--ink-muted)]">
+            <p className="mt-1 text-sm text-(--ink-muted)">
               {panel.item.userName} — {panel.item.documentType}
             </p>
             <form
@@ -271,14 +271,14 @@ export function VerificationsTable() {
                 <Label htmlFor="reason">Reason</Label>
                 <Textarea id="reason" {...reasonForm.register("reason")} />
                 {reasonForm.formState.errors.reason ? (
-                  <p className="mt-1 text-xs text-[var(--danger)]">
+                  <p className="mt-1 text-xs text-(--danger)">
                     {reasonForm.formState.errors.reason.message}
                   </p>
                 ) : null}
               </div>
               {(rejectMutation.error || flagMutation.error) instanceof
               ApiRequestError ? (
-                <p className="text-sm text-[var(--danger)]">
+                <p className="text-sm text-(--danger)">
                   {(rejectMutation.error || flagMutation.error)?.message}
                 </p>
               ) : null}

@@ -23,7 +23,7 @@ const defaultParams = {
 
 function AnalyticsFallback() {
   return (
-    <div className="h-64 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]" />
+    <div className="h-64 animate-pulse rounded-lg border border-(--border) bg-(--surface)" />
   );
 }
 

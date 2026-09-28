@@ -88,10 +88,10 @@ export function UsersTable() {
             className="text-left"
             onClick={() => openUser(row.original.id)}
           >
-            <p className="font-medium text-[var(--brand)] hover:underline">
+            <p className="font-medium text-(--brand) hover:underline">
               {fullName(row.original.firstname, row.original.lastname)}
             </p>
-            <p className="text-xs text-[var(--ink-muted)]">
+            <p className="text-xs text-(--ink-muted)">
               {row.original.email}
             </p>
           </button>
@@ -389,13 +389,13 @@ export function UsersTable() {
               </div>
 
               <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-(--ink-muted)">
                   Donation history
                 </h3>
                 {donationHistory.length === 0 ? (
-                  <p className="text-[var(--ink-muted)]">No donations yet.</p>
+                  <p className="text-(--ink-muted)">No donations yet.</p>
                 ) : (
-                  <div className="overflow-x-auto rounded border border-[var(--border)]">
+                  <div className="overflow-x-auto rounded border border-(--border)">
                     <table>
                       <thead>
                         <tr>
@@ -421,17 +421,17 @@ export function UsersTable() {
               </div>
 
               <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-(--ink-muted)">
                   Push tokens
                 </h3>
                 {pushTokens.length === 0 ? (
-                  <p className="text-[var(--ink-muted)]">No linked tokens.</p>
+                  <p className="text-(--ink-muted)">No linked tokens.</p>
                 ) : (
                   <ul className="space-y-1">
                     {pushTokens.map((t) => (
                       <li
                         key={t.id}
-                        className="rounded border border-[var(--border)] bg-[var(--surface)] px-3 py-2 font-mono text-xs"
+                        className="rounded border border-(--border) bg-(--surface) px-3 py-2 font-mono text-xs"
                       >
                         {t.platform ? `${t.platform}: ` : ""}
                         {t.token.slice(0, 24)}…
@@ -441,7 +441,7 @@ export function UsersTable() {
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-2 border-t border-[var(--border)] pt-4">
+              <div className="flex flex-wrap gap-2 border-t border-(--border) pt-4">
                 {!user.ninVerified ? (
                   <Button
                     size="sm"
@@ -513,7 +513,7 @@ export function UsersTable() {
                 </p>
               ) : null}
               {resetPasswordMutation.error instanceof ApiRequestError ? (
-                <p className="text-sm text-[var(--danger)]">
+                <p className="text-sm text-(--danger)">
                   {resetPasswordMutation.error.message}
                 </p>
               ) : null}
@@ -527,7 +527,7 @@ export function UsersTable() {
 
       {panel?.type === "suspend" ? (
         <Modal title="Suspend user" onClose={closeActionPanel}>
-          <p className="text-sm text-[var(--ink-muted)]">
+          <p className="text-sm text-(--ink-muted)">
             {fullName(panel.user.firstname, panel.user.lastname)} (
             {panel.user.email})
           </p>
@@ -547,13 +547,13 @@ export function UsersTable() {
                 {...suspendForm.register("reason")}
               />
               {suspendForm.formState.errors.reason ? (
-                <p className="mt-1 text-xs text-[var(--danger)]">
+                <p className="mt-1 text-xs text-(--danger)">
                   {suspendForm.formState.errors.reason.message}
                 </p>
               ) : null}
             </div>
             {suspendMutation.error instanceof ApiRequestError ? (
-              <p className="text-sm text-[var(--danger)]">
+              <p className="text-sm text-(--danger)">
                 {suspendMutation.error.message}
               </p>
             ) : null}
@@ -575,7 +575,7 @@ export function UsersTable() {
 
       {panel?.type === "merge" ? (
         <Modal title="Merge duplicate accounts" onClose={closeActionPanel}>
-          <p className="text-sm text-[var(--ink-muted)]">
+          <p className="text-sm text-(--ink-muted)">
             Merge{" "}
             <strong>
               {fullName(panel.user.firstname, panel.user.lastname)}
@@ -595,7 +595,7 @@ export function UsersTable() {
               <Label htmlFor="target-id">Target user ID</Label>
               <Input id="target-id" {...mergeForm.register("targetUserId")} />
               {mergeForm.formState.errors.targetUserId ? (
-                <p className="mt-1 text-xs text-[var(--danger)]">
+                <p className="mt-1 text-xs text-(--danger)">
                   {mergeForm.formState.errors.targetUserId.message}
                 </p>
               ) : null}
@@ -604,13 +604,13 @@ export function UsersTable() {
               <Label htmlFor="merge-reason">Reason</Label>
               <Textarea id="merge-reason" {...mergeForm.register("reason")} />
               {mergeForm.formState.errors.reason ? (
-                <p className="mt-1 text-xs text-[var(--danger)]">
+                <p className="mt-1 text-xs text-(--danger)">
                   {mergeForm.formState.errors.reason.message}
                 </p>
               ) : null}
             </div>
             {mergeMutation.error instanceof ApiRequestError ? (
-              <p className="text-sm text-[var(--danger)]">
+              <p className="text-sm text-(--danger)">
                 {mergeMutation.error.message}
               </p>
             ) : null}
@@ -632,8 +632,8 @@ export function UsersTable() {
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs text-[var(--ink-muted)]">{label}</p>
-      <p className="font-medium text-[var(--ink)]">{value}</p>
+      <p className="text-xs text-(--ink-muted)">{label}</p>
+      <p className="font-medium text-(--ink)">{value}</p>
     </div>
   );
 }
@@ -655,10 +655,10 @@ function Modal({
       onClick={onClose}
     >
       <div
-        className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-[var(--border)] bg-white p-6 shadow-xl ${wide ? "max-w-3xl" : "max-w-md"}`}
+        className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-(--border) bg-white p-6 shadow-xl ${wide ? "max-w-3xl" : "max-w-md"}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-[var(--ink)]">{title}</h2>
+        <h2 className="text-lg font-semibold text-(--ink)">{title}</h2>
         <div className="mt-4">{children}</div>
       </div>
     </div>

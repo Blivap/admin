@@ -27,7 +27,7 @@ function LoginForm() {
           {...register("email")}
         />
         {errors.email ? (
-          <p className="mt-1 text-xs text-[var(--danger)]">
+          <p className="mt-1 text-xs text-(--danger)">
             {errors.email.message}
           </p>
         ) : null}
@@ -42,7 +42,7 @@ function LoginForm() {
           {...register("password")}
         />
         {errors.password ? (
-          <p className="mt-1 text-xs text-[var(--danger)]">
+          <p className="mt-1 text-xs text-(--danger)">
             {errors.password.message}
           </p>
         ) : null}
@@ -63,7 +63,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[var(--sidebar)] px-4">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-(--sidebar) px-4">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-40"
@@ -74,20 +74,20 @@ export default function LoginPage() {
       />
       <div className="relative w-full max-w-md rounded-xl border border-white/10 bg-white p-8 shadow-2xl shadow-black/30">
         <div className="mb-8 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--brand)] text-white">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-(--brand) text-white">
             <Droplets className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-[var(--ink)]">
+            <h1 className="text-xl font-semibold tracking-tight text-(--ink)">
               Blivap Admin
             </h1>
-            <p className="text-sm text-[var(--ink-muted)]">
+            <p className="text-sm text-(--ink-muted)">
               Sign in with your admin credentials
             </p>
           </div>
         </div>
         <Suspense
-          fallback={<p className="text-sm text-[var(--ink-muted)]">Loading…</p>}
+          fallback={<p className="text-sm text-(--ink-muted)">Loading…</p>}
         >
           <LoginForm />
         </Suspense>

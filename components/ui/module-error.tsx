@@ -16,7 +16,7 @@ export function ModuleError({
   return (
     <div className="rounded-lg border border-rose-200 bg-rose-50 p-6">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[var(--danger)]">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-(--danger)">
           <AlertTriangle className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">

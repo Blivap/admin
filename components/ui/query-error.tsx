@@ -23,11 +23,11 @@ export function QueryError({
 
   return (
     <div className="flex flex-col items-center justify-center px-4 py-14 text-center">
-      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-rose-50 text-[var(--danger)]">
+      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-rose-50 text-(--danger)">
         <AlertTriangle className="h-5 w-5" />
       </div>
-      <p className="text-sm font-medium text-[var(--ink)]">{title}</p>
-      <p className="mt-1 max-w-md text-sm text-[var(--ink-muted)]">
+      <p className="text-sm font-medium text-(--ink)">{title}</p>
+      <p className="mt-1 max-w-md text-sm text-(--ink-muted)">
         {description}
       </p>
       {onRetry ? (

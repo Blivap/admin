@@ -53,7 +53,7 @@ export function CmsEditor() {
         {sections.fields.map((field, index) => (
           <div
             key={field.id}
-            className="space-y-3 rounded-lg border border-[var(--border)] bg-white p-4"
+            className="space-y-3 rounded-lg border border-(--border) bg-white p-4"
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
@@ -96,7 +96,7 @@ export function CmsEditor() {
         {faqs.fields.map((field, index) => (
           <div
             key={field.id}
-            className="space-y-3 rounded-lg border border-[var(--border)] bg-white p-4"
+            className="space-y-3 rounded-lg border border-(--border) bg-white p-4"
           >
             <div>
               <Label>Question</Label>
@@ -141,7 +141,7 @@ export function CmsEditor() {
         {testimonials.fields.map((field, index) => (
           <div
             key={field.id}
-            className="space-y-3 rounded-lg border border-[var(--border)] bg-white p-4"
+            className="space-y-3 rounded-lg border border-(--border) bg-white p-4"
           >
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
@@ -180,7 +180,7 @@ export function CmsEditor() {
         <p className="text-sm text-emerald-700">CMS content saved.</p>
       ) : null}
       {saveMutation.error instanceof ApiRequestError ? (
-        <p className="text-sm text-[var(--danger)]">
+        <p className="text-sm text-(--danger)">
           {saveMutation.error.message}
         </p>
       ) : null}
@@ -204,7 +204,7 @@ function Section({
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--ink-muted)]">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-(--ink-muted)">
           {title}
         </h2>
         <Button type="button" size="sm" variant="secondary" onClick={onAdd}>

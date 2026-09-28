@@ -156,44 +156,44 @@ export function DatePicker({
         onBlur={onBlur as never}
         onClick={() => !disabled && setOpen((v) => !v)}
         className={cn(
-          "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-white px-3 text-left text-sm transition-colors",
-          "focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20",
+          "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-(--border) bg-white px-3 text-left text-sm transition-colors",
+          "focus:border-(--brand) focus:outline-none focus:ring-2 focus:ring-(--brand)/20",
           disabled && "cursor-not-allowed opacity-50",
-          open && "border-[var(--brand)] ring-2 ring-[var(--brand)]/20",
+          open && "border-(--brand) ring-2 ring-(--brand)/20",
         )}
       >
         <span
           className={cn(
             "truncate",
-            selectedValid ? "text-[var(--ink)]" : "text-[var(--ink-subtle)]",
+            selectedValid ? "text-(--ink)" : "text-(--ink-subtle)",
           )}
         >
           {displayLabel}
         </span>
-        <CalendarDays className="h-4 w-4 shrink-0 text-[var(--ink-muted)]" />
+        <CalendarDays className="h-4 w-4 shrink-0 text-(--ink-muted)" />
       </button>
 
       {open ? (
         <div
           role="dialog"
           aria-label="Choose date"
-          className="absolute z-50 mt-1 w-[280px] rounded-lg border border-[var(--border)] bg-white p-3 shadow-lg shadow-black/10"
+          className="absolute z-50 mt-1 w-[280px] rounded-lg border border-(--border) bg-white p-3 shadow-lg shadow-black/10"
         >
           <div className="mb-3 flex items-center justify-between">
             <button
               type="button"
-              className="rounded-md p-1 text-[var(--ink-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--ink)]"
+              className="rounded-md p-1 text-(--ink-muted) hover:bg-(--surface-muted) hover:text-(--ink)"
               onClick={() => setCursorMonth((m) => subMonths(m, 1))}
               aria-label="Previous month"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <p className="text-sm font-medium text-[var(--ink)]">
+            <p className="text-sm font-medium text-(--ink)">
               {format(cursorMonth, "MMMM yyyy")}
             </p>
             <button
               type="button"
-              className="rounded-md p-1 text-[var(--ink-muted)] hover:bg-[var(--surface-muted)] hover:text-[var(--ink)]"
+              className="rounded-md p-1 text-(--ink-muted) hover:bg-(--surface-muted) hover:text-(--ink)"
               onClick={() => setCursorMonth((m) => addMonths(m, 1))}
               aria-label="Next month"
             >
@@ -205,7 +205,7 @@ export function DatePicker({
             {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => (
               <div
                 key={d}
-                className="py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-[var(--ink-subtle)]"
+                className="py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-(--ink-subtle)"
               >
                 {d}
               </div>
@@ -226,10 +226,10 @@ export function DatePicker({
                   onClick={() => commit(day)}
                   className={cn(
                     "flex h-8 w-full items-center justify-center rounded-md text-sm transition-colors",
-                    !inMonth && "text-[var(--ink-subtle)]",
-                    inMonth && !active && "text-[var(--ink)] hover:bg-[var(--surface-muted)]",
-                    active && "bg-[var(--brand)] font-medium text-white hover:bg-[var(--brand-hover)]",
-                    today && !active && "ring-1 ring-[var(--brand)]/40",
+                    !inMonth && "text-(--ink-subtle)",
+                    inMonth && !active && "text-(--ink) hover:bg-(--surface-muted)",
+                    active && "bg-(--brand) font-medium text-white hover:bg-(--brand-hover)",
+                    today && !active && "ring-1 ring-(--brand)/40",
                   )}
                 >
                   {format(day, "d")}
@@ -239,8 +239,8 @@ export function DatePicker({
           </div>
 
           {includeTime ? (
-            <div className="mt-3 flex items-center gap-2 border-t border-[var(--border)] pt-3">
-              <label className="text-xs text-[var(--ink-muted)]">Time</label>
+            <div className="mt-3 flex items-center gap-2 border-t border-(--border) pt-3">
+              <label className="text-xs text-(--ink-muted)">Time</label>
               <input
                 type="time"
                 value={time}
@@ -249,21 +249,21 @@ export function DatePicker({
                   setTime(nextTime);
                   if (selectedValid) commit(selectedValid, nextTime);
                 }}
-                className="h-8 flex-1 rounded-md border border-[var(--border)] bg-white px-2 text-sm text-[var(--ink)] focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20"
+                className="h-8 flex-1 rounded-md border border-(--border) bg-white px-2 text-sm text-(--ink) focus:border-(--brand) focus:outline-none focus:ring-2 focus:ring-(--brand)/20"
               />
               <button
                 type="button"
-                className="rounded-md px-2 py-1 text-xs font-medium text-[var(--brand)] hover:bg-[var(--brand-soft)]"
+                className="rounded-md px-2 py-1 text-xs font-medium text-(--brand) hover:bg-(--brand-soft)"
                 onClick={() => setOpen(false)}
               >
                 Done
               </button>
             </div>
           ) : (
-            <div className="mt-3 flex justify-between border-t border-[var(--border)] pt-3">
+            <div className="mt-3 flex justify-between border-t border-(--border) pt-3">
               <button
                 type="button"
-                className="rounded-md px-2 py-1 text-xs text-[var(--ink-muted)] hover:bg-[var(--surface-muted)]"
+                className="rounded-md px-2 py-1 text-xs text-(--ink-muted) hover:bg-(--surface-muted)"
                 onClick={() => {
                   if (!isControlled) setInternalValue("");
                   onChange?.({ target: { value: "", name } });
@@ -274,7 +274,7 @@ export function DatePicker({
               </button>
               <button
                 type="button"
-                className="rounded-md px-2 py-1 text-xs font-medium text-[var(--brand)] hover:bg-[var(--brand-soft)]"
+                className="rounded-md px-2 py-1 text-xs font-medium text-(--brand) hover:bg-(--brand-soft)"
                 onClick={() => commit(new Date())}
               >
                 Today

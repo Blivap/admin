@@ -95,10 +95,10 @@ export function RequestsTable() {
             className="text-left"
             onClick={() => openRequest(row.original.id)}
           >
-            <p className="font-medium text-[var(--brand)] hover:underline">
+            <p className="font-medium text-(--brand) hover:underline">
               {row.original.requesterName}
             </p>
-            <p className="text-xs text-[var(--ink-muted)]">
+            <p className="text-xs text-(--ink-muted)">
               {row.original.id.slice(0, 8)}…
             </p>
           </button>
@@ -388,25 +388,25 @@ export function RequestsTable() {
           ) : detailQuery.data ? (
             <div className="space-y-2 text-sm">
               <p>
-                <span className="text-[var(--ink-muted)]">Requester:</span>{" "}
+                <span className="text-(--ink-muted)">Requester:</span>{" "}
                 {detailQuery.data.requesterName}
               </p>
               <p>
-                <span className="text-[var(--ink-muted)]">Blood:</span>{" "}
+                <span className="text-(--ink-muted)">Blood:</span>{" "}
                 {detailQuery.data.neededBloodType}
               </p>
               <p>
-                <span className="text-[var(--ink-muted)]">Status:</span>{" "}
+                <span className="text-(--ink-muted)">Status:</span>{" "}
                 {detailQuery.data.status} · {detailQuery.data.urgency}
               </p>
               <p>
-                <span className="text-[var(--ink-muted)]">Radius:</span>{" "}
+                <span className="text-(--ink-muted)">Radius:</span>{" "}
                 {detailQuery.data.currentRadiusKm != null
                   ? `${detailQuery.data.currentRadiusKm} km`
                   : "—"}
               </p>
               <p>
-                <span className="text-[var(--ink-muted)]">Notes:</span>{" "}
+                <span className="text-(--ink-muted)">Notes:</span>{" "}
                 {detailQuery.data.notes || "—"}
               </p>
               <div className="flex justify-end pt-2">
@@ -490,7 +490,7 @@ export function RequestsTable() {
               <Label htmlFor="donor-id">Donor ID</Label>
               <Input id="donor-id" {...assignForm.register("donorId")} />
               {assignForm.formState.errors.donorId ? (
-                <p className="mt-1 text-xs text-[var(--danger)]">
+                <p className="mt-1 text-xs text-(--danger)">
                   {assignForm.formState.errors.donorId.message}
                 </p>
               ) : null}
@@ -500,7 +500,7 @@ export function RequestsTable() {
               <Textarea id="assign-note" {...assignForm.register("note")} />
             </div>
             {assignMutation.error instanceof ApiRequestError ? (
-              <p className="text-sm text-[var(--danger)]">
+              <p className="text-sm text-(--danger)">
                 {assignMutation.error.message}
               </p>
             ) : null}
@@ -534,7 +534,7 @@ export function RequestsTable() {
               <Textarea id="esc-reason" {...escalateForm.register("reason")} />
             </div>
             {escalateMutation.error instanceof ApiRequestError ? (
-              <p className="text-sm text-[var(--danger)]">
+              <p className="text-sm text-(--danger)">
                 {escalateMutation.error.message}
               </p>
             ) : null}
@@ -585,7 +585,7 @@ export function RequestsTable() {
               <Input id="rb-donor" {...rebroadcastForm.register("donorId")} />
             </div>
             {rebroadcastMutation.error instanceof ApiRequestError ? (
-              <p className="text-sm text-[var(--danger)]">
+              <p className="text-sm text-(--danger)">
                 {rebroadcastMutation.error.message}
               </p>
             ) : null}
@@ -618,7 +618,7 @@ function Modal({
       onClick={onClose}
     >
       <div
-        className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-[var(--border)] bg-white p-6 shadow-xl ${wide ? "max-w-3xl" : "max-w-md"}`}
+        className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-(--border) bg-white p-6 shadow-xl ${wide ? "max-w-3xl" : "max-w-md"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold">{title}</h2>

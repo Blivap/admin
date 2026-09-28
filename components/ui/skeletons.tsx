@@ -32,7 +32,7 @@ export function TableSkeleton({
         ) : undefined
       }
       footer={
-        <div className="flex items-center justify-between border-t border-[var(--border)] px-4 py-3">
+        <div className="flex items-center justify-between border-t border-(--border) px-4 py-3">
           <Skeleton className="h-4 w-28" />
           <div className="flex gap-2">
             <Skeleton className="h-8 w-8" />
@@ -78,7 +78,7 @@ export function OverviewSkeleton() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-lg border border-[var(--border)] bg-white px-4 py-3"
+            className="rounded-lg border border-(--border) bg-white px-4 py-3"
           >
             <Skeleton className="h-3 w-24" />
             <Skeleton className="mt-3 h-8 w-16" />
@@ -86,16 +86,16 @@ export function OverviewSkeleton() {
         ))}
       </div>
       <div className="grid gap-4 lg:grid-cols-5">
-        <div className="rounded-lg border border-[var(--border)] bg-white p-4 lg:col-span-3">
+        <div className="rounded-lg border border-(--border) bg-white p-4 lg:col-span-3">
           <Skeleton className="mb-4 h-4 w-40" />
           <Skeleton className="h-[260px] w-full" />
         </div>
-        <div className="rounded-lg border border-[var(--border)] bg-white lg:col-span-2">
-          <div className="border-b border-[var(--border)] px-4 py-3">
+        <div className="rounded-lg border border-(--border) bg-white lg:col-span-2">
+          <div className="border-b border-(--border) px-4 py-3">
             <Skeleton className="h-4 w-44" />
             <Skeleton className="mt-2 h-3 w-32" />
           </div>
-          <div className="divide-y divide-[var(--border)]">
+          <div className="divide-y divide-(--border)">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex justify-between gap-2 px-4 py-3">
                 <div className="space-y-2">
@@ -114,7 +114,7 @@ export function OverviewSkeleton() {
 
 export function FormSkeleton({ fields = 6 }: { fields?: number }) {
   return (
-    <div className="max-w-xl space-y-5 rounded-lg border border-[var(--border)] bg-white p-6">
+    <div className="max-w-xl space-y-5 rounded-lg border border-(--border) bg-white p-6">
       {Array.from({ length: fields }).map((_, i) => (
         <div key={i} className="space-y-2">
           <Skeleton className="h-3 w-40" />
@@ -138,7 +138,7 @@ export function CmsSkeleton() {
           {Array.from({ length: 2 }).map((_, card) => (
             <div
               key={card}
-              className="space-y-3 rounded-lg border border-[var(--border)] bg-white p-4"
+              className="space-y-3 rounded-lg border border-(--border) bg-white p-4"
             >
               <Skeleton className="h-9 w-full" />
               <Skeleton className="h-20 w-full" />
@@ -155,7 +155,7 @@ export function CmsSkeleton() {
 export function AnalyticsSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-white p-4 sm:flex-row sm:items-end">
+      <div className="flex flex-col gap-3 rounded-lg border border-(--border) bg-white p-4 sm:flex-row sm:items-end">
         <Skeleton className="h-9 w-36" />
         <Skeleton className="h-9 w-36" />
         <Skeleton className="h-9 w-40" />
@@ -166,7 +166,7 @@ export function AnalyticsSkeleton() {
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-lg border border-[var(--border)] bg-white px-4 py-3"
+            className="rounded-lg border border-(--border) bg-white px-4 py-3"
           >
             <Skeleton className="h-3 w-24" />
             <Skeleton className="mt-3 h-8 w-16" />
@@ -177,7 +177,7 @@ export function AnalyticsSkeleton() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-lg border border-[var(--border)] bg-white p-4"
+            className="rounded-lg border border-(--border) bg-white p-4"
           >
             <Skeleton className="mb-4 h-4 w-40" />
             <Skeleton className="h-[260px] w-full" />

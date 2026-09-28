@@ -36,9 +36,9 @@ export function Sidebar() {
   const { mutation: logoutMutation } = useLogout();
 
   return (
-    <aside className="flex h-full min-h-0 w-60 shrink-0 flex-col border-r border-white/10 bg-[var(--sidebar)] text-[var(--sidebar-ink)]">
+    <aside className="flex h-full min-h-0 w-60 shrink-0 flex-col border-r border-white/10 bg-(--sidebar) text-(--sidebar-ink)">
       <div className="flex items-center gap-2.5 border-b border-white/10 px-5 py-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[var(--brand)] text-white">
+        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-(--brand) text-white">
           <Droplets className="h-4 w-4" />
         </div>
         <div>

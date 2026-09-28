@@ -77,7 +77,7 @@ export function NotificationsTable() {
         cell: ({ row }) => (
           <div>
             <p className="font-medium">{row.original.title}</p>
-            <p className="line-clamp-1 text-xs text-[var(--ink-muted)]">
+            <p className="line-clamp-1 text-xs text-(--ink-muted)">
               {row.original.body}
             </p>
           </div>
@@ -276,7 +276,7 @@ export function NotificationsTable() {
 
       {panel?.type === "compose" ? (
         <Modal title="Compose notification" onClose={closePanel} wide>
-          <p className="mb-3 text-sm text-[var(--ink-muted)]">
+          <p className="mb-3 text-sm text-(--ink-muted)">
             Leave segment filters empty for a system-wide announcement. Set
             inactivity days for a re-engagement nudge.
           </p>
@@ -290,7 +290,7 @@ export function NotificationsTable() {
               <Label htmlFor="bc-title">Title</Label>
               <Input id="bc-title" {...broadcastForm.register("title")} />
               {broadcastForm.formState.errors.title ? (
-                <p className="mt-1 text-xs text-[var(--danger)]">
+                <p className="mt-1 text-xs text-(--danger)">
                   {broadcastForm.formState.errors.title.message}
                 </p>
               ) : null}
@@ -299,7 +299,7 @@ export function NotificationsTable() {
               <Label htmlFor="bc-body">Body</Label>
               <Textarea id="bc-body" {...broadcastForm.register("body")} />
               {broadcastForm.formState.errors.body ? (
-                <p className="mt-1 text-xs text-[var(--danger)]">
+                <p className="mt-1 text-xs text-(--danger)">
                   {broadcastForm.formState.errors.body.message}
                 </p>
               ) : null}
@@ -400,7 +400,7 @@ export function NotificationsTable() {
               />
             </div>
             {broadcastMutation.error instanceof ApiRequestError ? (
-              <p className="sm:col-span-2 text-sm text-[var(--danger)]">
+              <p className="sm:col-span-2 text-sm text-(--danger)">
                 {broadcastMutation.error.message}
               </p>
             ) : null}
@@ -426,7 +426,7 @@ export function NotificationsTable() {
               <Label htmlFor="dm-user">User ID</Label>
               <Input id="dm-user" {...dmForm.register("userId")} />
               {dmForm.formState.errors.userId ? (
-                <p className="mt-1 text-xs text-[var(--danger)]">
+                <p className="mt-1 text-xs text-(--danger)">
                   {dmForm.formState.errors.userId.message}
                 </p>
               ) : null}
@@ -444,7 +444,7 @@ export function NotificationsTable() {
               <Input id="dm-link" {...dmForm.register("deepLink")} />
             </div>
             {dmMutation.error instanceof ApiRequestError ? (
-              <p className="text-sm text-[var(--danger)]">
+              <p className="text-sm text-(--danger)">
                 {dmMutation.error.message}
               </p>
             ) : null}
@@ -462,7 +462,7 @@ export function NotificationsTable() {
 
       {statsNotificationId ? (
         <Modal title="Delivery stats" onClose={clearStats}>
-          <p className="text-sm text-[var(--ink-muted)]">{statsTitle}</p>
+          <p className="text-sm text-(--ink-muted)">{statsTitle}</p>
           {statsQuery.isLoading ? (
             <EmptyState title="Loading stats…" />
           ) : statsQuery.isError ? (
@@ -495,8 +495,8 @@ export function NotificationsTable() {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
-      <dt className="text-xs text-[var(--ink-muted)]">{label}</dt>
+    <div className="rounded-md border border-(--border) bg-(--surface) px-3 py-2">
+      <dt className="text-xs text-(--ink-muted)">{label}</dt>
       <dd className="text-lg font-semibold tabular-nums">{value}</dd>
     </div>
   );
@@ -519,7 +519,7 @@ function Modal({
       onClick={onClose}
     >
       <div
-        className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-[var(--border)] bg-white p-6 shadow-xl ${wide ? "max-w-2xl" : "max-w-md"}`}
+        className={`max-h-[90vh] w-full overflow-y-auto rounded-lg border border-(--border) bg-white p-6 shadow-xl ${wide ? "max-w-2xl" : "max-w-md"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-semibold">{title}</h2>

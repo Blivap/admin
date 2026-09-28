@@ -44,7 +44,7 @@ export function AuditTable() {
         accessorKey: "action",
         header: "Action",
         cell: ({ getValue }) => (
-          <code className="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 text-xs">
+          <code className="rounded bg-(--surface-muted) px-1.5 py-0.5 text-xs">
             {getValue<string>()}
           </code>
         ),
@@ -57,7 +57,7 @@ export function AuditTable() {
             <p className="font-medium">
               {row.original.adminName || row.original.adminEmail}
             </p>
-            <p className="text-xs text-[var(--ink-muted)]">
+            <p className="text-xs text-(--ink-muted)">
               {row.original.adminId.slice(0, 8)}…
             </p>
           </div>

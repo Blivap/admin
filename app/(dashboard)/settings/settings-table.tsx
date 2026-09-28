@@ -29,7 +29,7 @@ export function SettingsTable() {
   }
 
   return (
-    <div className="max-w-xl rounded-lg border border-[var(--border)] bg-white p-6">
+    <div className="max-w-xl rounded-lg border border-(--border) bg-white p-6">
       <div className="mb-5 flex justify-end">
         <ReloadButton
           onReload={() => settingsQuery.refetch()}
@@ -79,7 +79,7 @@ export function SettingsTable() {
           {...form.register("unmatchedAlertThresholdMinutes")}
         />
 
-        <div className="flex items-start gap-3 rounded-md border border-[var(--border)] bg-[var(--surface)] p-3">
+        <div className="flex items-start gap-3 rounded-md border border-(--border) bg-(--surface) p-3">
           <input
             id="maintenanceMode"
             type="checkbox"
@@ -90,14 +90,14 @@ export function SettingsTable() {
             <Label htmlFor="maintenanceMode" className="mb-0">
               Maintenance mode
             </Label>
-            <p className="text-xs text-[var(--ink-muted)]">
+            <p className="text-xs text-(--ink-muted)">
               Blocks new mobile requests and shows a maintenance screen.
             </p>
           </div>
         </div>
 
         {settingsQuery.data?.updatedAt ? (
-          <p className="text-xs text-[var(--ink-muted)]">
+          <p className="text-xs text-(--ink-muted)">
             Last updated {formatDate(settingsQuery.data.updatedAt)}
             {settingsQuery.data.updatedByName
               ? ` by ${settingsQuery.data.updatedByName}`
@@ -140,9 +140,9 @@ function Field({
       <Label htmlFor={id}>{label}</Label>
       <Input id={id} {...props} />
       {hint ? (
-        <p className="mt-1 text-xs text-[var(--ink-muted)]">{hint}</p>
+        <p className="mt-1 text-xs text-(--ink-muted)">{hint}</p>
       ) : null}
-      {error ? <p className="mt-1 text-xs text-[var(--danger)]">{error}</p> : null}
+      {error ? <p className="mt-1 text-xs text-(--danger)">{error}</p> : null}
     </div>
   );
 }

@@ -61,8 +61,8 @@ export function OverviewPanel() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-5">
-        <div className="rounded-lg border border-[var(--border)] bg-white p-4 lg:col-span-3">
-          <h2 className="mb-4 text-sm font-semibold text-[var(--ink)]">
+        <div className="rounded-lg border border-(--border) bg-white p-4 lg:col-span-3">
+          <h2 className="mb-4 text-sm font-semibold text-(--ink)">
             Requests — last 30 days
           </h2>
           {chartData.length === 0 ? (
@@ -90,12 +90,12 @@ export function OverviewPanel() {
           )}
         </div>
 
-        <div className="rounded-lg border border-[var(--border)] bg-white lg:col-span-2">
-          <div className="border-b border-[var(--border)] px-4 py-3">
-            <h2 className="text-sm font-semibold text-[var(--ink)]">
+        <div className="rounded-lg border border-(--border) bg-white lg:col-span-2">
+          <div className="border-b border-(--border) px-4 py-3">
+            <h2 className="text-sm font-semibold text-(--ink)">
               Unmatched urgent alerts
             </h2>
-            <p className="text-xs text-[var(--ink-muted)]">
+            <p className="text-xs text-(--ink-muted)">
               Past {data.alertThresholdMinutes ?? 15} minutes (from settings)
             </p>
           </div>
@@ -107,18 +107,18 @@ export function OverviewPanel() {
               description="No urgent requests have crossed the unmatched threshold."
             />
           ) : (
-            <ul className="divide-y divide-[var(--border)]">
+            <ul className="divide-y divide-(--border)">
               {alerts.map((alert) => (
                 <li key={alert.requestId} className="px-4 py-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <Link
                         href={`/requests?highlight=${alert.requestId}`}
-                        className="text-sm font-medium text-[var(--brand)] hover:underline"
+                        className="text-sm font-medium text-(--brand) hover:underline"
                       >
                         {alert.requesterName}
                       </Link>
-                      <p className="mt-0.5 text-xs text-[var(--ink-muted)]">
+                      <p className="mt-0.5 text-xs text-(--ink-muted)">
                         {alert.bloodType}
                         {alert.region ? ` · ${alert.region}` : ""} ·{" "}
                         {formatDate(alert.createdAt)}
@@ -126,7 +126,7 @@ export function OverviewPanel() {
                     </div>
                     <div className="text-right">
                       <Badge tone="danger">{alert.urgency}</Badge>
-                      <p className="mt-1 text-xs tabular-nums text-[var(--danger)]">
+                      <p className="mt-1 text-xs tabular-nums text-(--danger)">
                         {alert.unmatchedMinutes}m unmatched
                       </p>
                     </div>
@@ -149,11 +149,11 @@ function StatCard({
   value: string | number;
 }) {
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-white px-4 py-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+    <div className="rounded-lg border border-(--border) bg-white px-4 py-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-(--ink-muted)">
         {label}
       </p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-[var(--ink)]">
+      <p className="mt-1 text-2xl font-semibold tabular-nums text-(--ink)">
         {typeof value === "number" ? value.toLocaleString() : value}
       </p>
     </div>

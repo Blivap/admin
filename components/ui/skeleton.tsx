@@ -8,7 +8,7 @@ export function Skeleton({
   return (
     <div
       className={cn(
-        "animate-pulse rounded-md bg-[var(--surface-muted)]",
+        "animate-pulse rounded-md bg-(--surface-muted)",
         className,
       )}
     />

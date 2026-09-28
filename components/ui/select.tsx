@@ -114,23 +114,23 @@ export function Select({
         onBlur={onBlur as never}
         onClick={() => !disabled && setOpen((v) => !v)}
         className={cn(
-          "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-[var(--border)] bg-white px-3 text-left text-sm transition-colors",
-          "focus:border-[var(--brand)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)]/20",
+          "flex h-9 w-full items-center justify-between gap-2 rounded-md border border-(--border) bg-white px-3 text-left text-sm transition-colors",
+          "focus:border-(--brand) focus:outline-none focus:ring-2 focus:ring-(--brand)/20",
           disabled && "cursor-not-allowed opacity-50",
-          open && "border-[var(--brand)] ring-2 ring-[var(--brand)]/20",
+          open && "border-(--brand) ring-2 ring-(--brand)/20",
         )}
       >
         <span
           className={cn(
             "truncate",
-            selected ? "text-[var(--ink)]" : "text-[var(--ink-subtle)]",
+            selected ? "text-(--ink)" : "text-(--ink-subtle)",
           )}
         >
           {selected?.label || placeholder}
         </span>
         <ChevronDown
           className={cn(
-            "h-4 w-4 shrink-0 text-[var(--ink-muted)] transition-transform",
+            "h-4 w-4 shrink-0 text-(--ink-muted) transition-transform",
             open && "rotate-180",
           )}
         />
@@ -140,7 +140,7 @@ export function Select({
         <ul
           role="listbox"
           aria-labelledby={selectId}
-          className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-[var(--border)] bg-white py-1 shadow-lg shadow-black/10"
+          className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-(--border) bg-white py-1 shadow-lg shadow-black/10"
         >
           {options.map((option) => {
             const active = option.value === selectedValue;
@@ -152,8 +152,8 @@ export function Select({
                   className={cn(
                     "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors",
                     active
-                      ? "bg-[var(--brand-soft)] text-[var(--brand)]"
-                      : "text-[var(--ink)] hover:bg-[var(--surface-muted)]",
+                      ? "bg-(--brand-soft) text-(--brand)"
+                      : "text-(--ink) hover:bg-(--surface-muted)",
                     option.disabled && "cursor-not-allowed opacity-40",
                   )}
                   onClick={() => commit(option.value)}

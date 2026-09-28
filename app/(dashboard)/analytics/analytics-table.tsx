@@ -59,7 +59,7 @@ export function AnalyticsDashboard({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-white p-4 sm:flex-row sm:items-end">
+      <div className="flex flex-col gap-3 rounded-lg border border-(--border) bg-white p-4 sm:flex-row sm:items-end">
         <div>
           <Label htmlFor="from">From</Label>
           <DatePicker
@@ -104,7 +104,7 @@ export function AnalyticsDashboard({
       </div>
 
       {exportMutation.error instanceof ApiRequestError ? (
-        <p className="text-sm text-[var(--danger)]">
+        <p className="text-sm text-(--danger)">
           {exportMutation.error.message}
         </p>
       ) : null}
@@ -233,8 +233,8 @@ export function AnalyticsDashboard({
 
 function Metric({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-white px-4 py-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-[var(--ink-muted)]">
+    <div className="rounded-lg border border-(--border) bg-white px-4 py-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-(--ink-muted)">
         {label}
       </p>
       <p className="mt-1 text-2xl font-semibold tabular-nums">
@@ -252,7 +252,7 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-white p-4">
+    <div className="rounded-lg border border-(--border) bg-white p-4">
       <h2 className="mb-4 text-sm font-semibold">{title}</h2>
       {children}
     </div>
