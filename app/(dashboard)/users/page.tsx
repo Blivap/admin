@@ -3,8 +3,10 @@ import {
   HydrationBoundary,
   QueryClient,
 } from "@tanstack/react-query";
+import { Suspense } from "react";
 
 import { PageHeader } from "@/components/ui/page-header";
+import { TableSkeleton } from "@/components/ui/skeletons";
 import { listUsers } from "@/lib/api/users";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -30,7 +32,9 @@ export default async function UsersPage() {
         description="Filter donors and requesters, open profiles, and run suspend / verify / merge actions."
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
-        <UsersTable />
+        <Suspense fallback={<TableSkeleton columns={8} rows={8} />}>
+          <UsersTable />
+        </Suspense>
       </HydrationBoundary>
     </>
   );

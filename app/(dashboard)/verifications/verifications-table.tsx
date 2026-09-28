@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
+import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
 import { TableShell } from "@/components/ui/table-shell";
 import { Textarea } from "@/components/ui/textarea";
@@ -182,6 +183,10 @@ export function VerificationsTable() {
             <Button variant="secondary" onClick={applyFilters}>
               Apply
             </Button>
+            <ReloadButton
+              onReload={() => listQuery.refetch()}
+              loading={listQuery.isFetching}
+            />
           </>
         }
         footer={

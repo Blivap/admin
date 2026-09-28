@@ -3,8 +3,10 @@ import {
   HydrationBoundary,
   QueryClient,
 } from "@tanstack/react-query";
+import { Suspense } from "react";
 
 import { PageHeader } from "@/components/ui/page-header";
+import { TableSkeleton } from "@/components/ui/skeletons";
 import { listVerifications } from "@/lib/api/verifications";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -30,7 +32,9 @@ export default async function VerificationsPage() {
         description="Approve, reject (with reason), or flag suspicious donor/requester verification submissions."
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
-        <VerificationsTable />
+        <Suspense fallback={<TableSkeleton columns={6} rows={8} />}>
+          <VerificationsTable />
+        </Suspense>
       </HydrationBoundary>
     </>
   );

@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -18,6 +18,8 @@ import {
 } from "@/lib/api/requests";
 import { queryKeys } from "@/lib/query-keys";
 import type { BloodRequestStatus, RequestsListParams } from "@/types";
+
+import { toPositiveInt, useUrlParams } from "./use-url-params";
 
 export const assignSchema = z.object({
   donorId: z.string().min(1, "Donor ID is required"),
@@ -39,29 +41,71 @@ export type AssignFormValues = z.infer<typeof assignSchema>;
 export type EscalateFormValues = z.infer<typeof escalateSchema>;
 export type RebroadcastFormValues = z.infer<typeof rebroadcastSchema>;
 
-const defaultParams: RequestsListParams = {
-  page: 1,
-  pageSize: 20,
+const urlDefaults = {
+  page: "1",
+  pageSize: "20",
   query: "",
   bloodType: "",
   status: "",
   urgency: "",
   region: "",
+  requestId: "",
+  view: "",
 };
 
 export function useRequests({
-  detailRequestId = "",
-  matchesRequestId = "",
   onActionSuccess,
 }: {
-  detailRequestId?: string;
-  matchesRequestId?: string;
   onActionSuccess?: () => void;
 } = {}) {
   const queryClient = useQueryClient();
-  const [params, setParams] = useState<RequestsListParams>(defaultParams);
-  const [draftQuery, setDraftQuery] = useState("");
-  const [draftRegion, setDraftRegion] = useState("");
+  const [url, setUrl] = useUrlParams(urlDefaults);
+
+  const params: RequestsListParams = {
+    page: toPositiveInt(url.page, 1),
+    pageSize: toPositiveInt(url.pageSize, 20),
+    query: url.query,
+    bloodType: url.bloodType as RequestsListParams["bloodType"],
+    status: url.status as RequestsListParams["status"],
+    urgency: url.urgency as RequestsListParams["urgency"],
+    region: url.region,
+  };
+
+  const requestId = url.requestId;
+  const view = url.view;
+  const detailRequestId = requestId && view !== "matches" ? requestId : "";
+  const matchesRequestId = requestId && view === "matches" ? requestId : "";
+
+  const [draftQuery, setDraftQuery] = useState(url.query);
+  const [draftRegion, setDraftRegion] = useState(url.region);
+
+  useEffect(() => {
+    setDraftQuery(url.query);
+    setDraftRegion(url.region);
+  }, [url.query, url.region]);
+
+  const setParams = (
+    patch:
+      | Partial<RequestsListParams>
+      | ((prev: RequestsListParams) => RequestsListParams),
+  ) => {
+    const next = typeof patch === "function" ? patch(params) : { ...params, ...patch };
+    setUrl({
+      page: String(next.page ?? 1),
+      pageSize: String(next.pageSize ?? 20),
+      query: next.query ?? "",
+      bloodType: (next.bloodType as string) ?? "",
+      status: (next.status as string) ?? "",
+      urgency: (next.urgency as string) ?? "",
+      region: next.region ?? "",
+      requestId: url.requestId,
+      view: url.view,
+    });
+  };
+
+  const openRequest = (id: string, nextView: "" | "matches" = "") =>
+    setUrl({ requestId: id, view: nextView });
+  const clearRequest = () => setUrl({ requestId: "", view: "" });
 
   const listQuery = useQuery({
     queryKey: queryKeys.requests.list(params),
@@ -146,12 +190,11 @@ export function useRequests({
   });
 
   const applyFilters = () =>
-    setParams((prev) => ({
-      ...prev,
+    setUrl({
       query: draftQuery,
       region: draftRegion,
-      page: 1,
-    }));
+      page: "1",
+    });
 
   return {
     params,
@@ -161,6 +204,10 @@ export function useRequests({
     draftRegion,
     setDraftRegion,
     applyFilters,
+    requestId,
+    view,
+    openRequest,
+    clearRequest,
     listQuery,
     detailQuery,
     matchesQuery,

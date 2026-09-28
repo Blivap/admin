@@ -4,6 +4,7 @@ import {
   QueryClient,
 } from "@tanstack/react-query";
 import { formatISO, subDays } from "date-fns";
+import { Suspense } from "react";
 
 import { PageHeader } from "@/components/ui/page-header";
 import {
@@ -19,6 +20,12 @@ const defaultParams = {
   from: formatISO(subDays(new Date(), 30), { representation: "date" }),
   to: formatISO(new Date(), { representation: "date" }),
 };
+
+function AnalyticsFallback() {
+  return (
+    <div className="h-64 animate-pulse rounded-lg border border-[var(--border)] bg-[var(--surface)]" />
+  );
+}
 
 export default async function AnalyticsPage() {
   const queryClient = new QueryClient();
@@ -52,7 +59,9 @@ export default async function AnalyticsPage() {
         description="Donor growth, fulfillment rates, match-time trends, and CSV export."
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
-        <AnalyticsDashboard initialParams={defaultParams} />
+        <Suspense fallback={<AnalyticsFallback />}>
+          <AnalyticsDashboard initialParams={defaultParams} />
+        </Suspense>
       </HydrationBoundary>
     </>
   );

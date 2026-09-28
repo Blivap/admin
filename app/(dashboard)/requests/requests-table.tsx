@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
+import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
 import { TableShell } from "@/components/ui/table-shell";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,10 +30,8 @@ import type {
 } from "@/types";
 
 type Panel =
-  | { type: "detail"; request: AdminBloodRequestListItem }
   | { type: "assign"; request: AdminBloodRequestListItem }
   | { type: "escalate"; request: AdminBloodRequestListItem }
-  | { type: "matches"; request: AdminBloodRequestListItem }
   | { type: "rebroadcast"; request: AdminBloodRequestListItem }
   | null;
 
@@ -53,10 +52,7 @@ function statusTone(status: BloodRequestStatus) {
 
 export function RequestsTable() {
   const [panel, setPanel] = useState<Panel>(null);
-  const closePanel = useCallback(() => setPanel(null), []);
-
-  const detailRequestId = panel?.type === "detail" ? panel.request.id : "";
-  const matchesRequestId = panel?.type === "matches" ? panel.request.id : "";
+  const closeActionPanel = useCallback(() => setPanel(null), []);
 
   const {
     params,
@@ -66,6 +62,10 @@ export function RequestsTable() {
     draftRegion,
     setDraftRegion,
     applyFilters,
+    requestId,
+    view,
+    openRequest,
+    clearRequest,
     listQuery,
     detailQuery,
     matchesQuery,
@@ -78,10 +78,11 @@ export function RequestsTable() {
     statusMutation,
     rebroadcastMutation,
   } = useRequests({
-    detailRequestId,
-    matchesRequestId,
-    onActionSuccess: closePanel,
+    onActionSuccess: closeActionPanel,
   });
+
+  const showDetail = Boolean(requestId) && view !== "matches";
+  const showMatches = Boolean(requestId) && view === "matches";
 
   const columns = useMemo<ColumnDef<AdminBloodRequestListItem>[]>(
     () => [
@@ -92,7 +93,7 @@ export function RequestsTable() {
           <button
             type="button"
             className="text-left"
-            onClick={() => setPanel({ type: "detail", request: row.original })}
+            onClick={() => openRequest(row.original.id)}
           >
             <p className="font-medium text-[var(--brand)] hover:underline">
               {row.original.requesterName}
@@ -151,7 +152,7 @@ export function RequestsTable() {
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={() => setPanel({ type: "matches", request })}
+                onClick={() => openRequest(request.id, "matches")}
               >
                 Matches
               </Button>
@@ -214,7 +215,14 @@ export function RequestsTable() {
         },
       },
     ],
-    [assignForm, escalateForm, rebroadcastForm, rematchMutation, statusMutation],
+    [
+      assignForm,
+      escalateForm,
+      openRequest,
+      rebroadcastForm,
+      rematchMutation,
+      statusMutation,
+    ],
   );
 
   const table = useReactTable({
@@ -314,6 +322,10 @@ export function RequestsTable() {
             <Button variant="secondary" onClick={applyFilters}>
               Apply
             </Button>
+            <ReloadButton
+              onReload={() => listQuery.refetch()}
+              loading={listQuery.isFetching}
+            />
           </>
         }
         footer={
@@ -369,8 +381,8 @@ export function RequestsTable() {
         )}
       </TableShell>
 
-      {panel?.type === "detail" ? (
-        <Modal title="Request detail" onClose={closePanel} wide>
+      {showDetail ? (
+        <Modal title="Request detail" onClose={clearRequest} wide>
           {detailQuery.isLoading ? (
             <EmptyState title="Loading…" />
           ) : detailQuery.data ? (
@@ -398,7 +410,7 @@ export function RequestsTable() {
                 {detailQuery.data.notes || "—"}
               </p>
               <div className="flex justify-end pt-2">
-                <Button variant="secondary" onClick={closePanel}>
+                <Button variant="secondary" onClick={clearRequest}>
                   Close
                 </Button>
               </div>
@@ -409,8 +421,8 @@ export function RequestsTable() {
         </Modal>
       ) : null}
 
-      {panel?.type === "matches" ? (
-        <Modal title="Matching log" onClose={closePanel} wide>
+      {showMatches ? (
+        <Modal title="Matching log" onClose={clearRequest} wide>
           {matchesQuery.isLoading ? (
             <EmptyState title="Loading matches…" />
           ) : matchesQuery.isError ? (
@@ -459,7 +471,7 @@ export function RequestsTable() {
             </div>
           )}
           <div className="mt-4 flex justify-end">
-            <Button variant="secondary" onClick={closePanel}>
+            <Button variant="secondary" onClick={clearRequest}>
               Close
             </Button>
           </div>
@@ -467,7 +479,7 @@ export function RequestsTable() {
       ) : null}
 
       {panel?.type === "assign" ? (
-        <Modal title="Assign donor" onClose={closePanel}>
+        <Modal title="Assign donor" onClose={closeActionPanel}>
           <form
             className="space-y-4"
             onSubmit={assignForm.handleSubmit((values) =>
@@ -493,7 +505,7 @@ export function RequestsTable() {
               </p>
             ) : null}
             <ModalActions
-              onCancel={closePanel}
+              onCancel={closeActionPanel}
               pending={assignMutation.isPending}
               label="Assign"
             />
@@ -502,7 +514,7 @@ export function RequestsTable() {
       ) : null}
 
       {panel?.type === "escalate" ? (
-        <Modal title="Escalate radius" onClose={closePanel}>
+        <Modal title="Escalate radius" onClose={closeActionPanel}>
           <form
             className="space-y-4"
             onSubmit={escalateForm.handleSubmit((values) =>
@@ -527,7 +539,7 @@ export function RequestsTable() {
               </p>
             ) : null}
             <ModalActions
-              onCancel={closePanel}
+              onCancel={closeActionPanel}
               pending={escalateMutation.isPending}
               label="Escalate"
             />
@@ -536,7 +548,7 @@ export function RequestsTable() {
       ) : null}
 
       {panel?.type === "rebroadcast" ? (
-        <Modal title="Rebroadcast / override" onClose={closePanel}>
+        <Modal title="Rebroadcast / override" onClose={closeActionPanel}>
           <form
             className="space-y-4"
             onSubmit={rebroadcastForm.handleSubmit((values) =>
@@ -545,7 +557,16 @@ export function RequestsTable() {
           >
             <div>
               <Label htmlFor="rb-mode">Mode</Label>
-              <Select id="rb-mode" {...rebroadcastForm.register("mode")}>
+              <Select
+                id="rb-mode"
+                value={rebroadcastForm.watch("mode")}
+                onChange={(e) =>
+                  rebroadcastForm.setValue(
+                    "mode",
+                    e.target.value as "same" | "wider_radius" | "force_donor",
+                  )
+                }
+              >
                 <option value="same">Re-broadcast same radius</option>
                 <option value="wider_radius">Wider radius</option>
                 <option value="force_donor">Force-notify specific donor</option>
@@ -569,7 +590,7 @@ export function RequestsTable() {
               </p>
             ) : null}
             <ModalActions
-              onCancel={closePanel}
+              onCancel={closeActionPanel}
               pending={rebroadcastMutation.isPending}
               label="Send"
             />

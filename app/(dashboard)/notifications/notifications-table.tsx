@@ -10,10 +10,12 @@ import { useCallback, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
+import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
 import { TableShell } from "@/components/ui/table-shell";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,11 +29,7 @@ import type {
   NotificationKind,
 } from "@/types";
 
-type Panel =
-  | { type: "compose" }
-  | { type: "dm" }
-  | { type: "stats"; notification: AdminNotificationListItem }
-  | null;
+type Panel = { type: "compose" } | { type: "dm" } | null;
 
 function statusTone(status: NotificationDeliveryStatus) {
   switch (status) {
@@ -51,12 +49,12 @@ export function NotificationsTable() {
   const [panel, setPanel] = useState<Panel>(null);
   const closePanel = useCallback(() => setPanel(null), []);
 
-  const statsNotificationId =
-    panel?.type === "stats" ? panel.notification.id : "";
-
   const {
     params,
     setParams,
+    statsNotificationId,
+    openStats,
+    clearStats,
     listQuery,
     statsQuery,
     broadcastForm,
@@ -64,9 +62,12 @@ export function NotificationsTable() {
     broadcastMutation,
     dmMutation,
   } = useNotifications({
-    statsNotificationId,
     onActionSuccess: closePanel,
   });
+
+  const statsTitle =
+    listQuery.data?.data.find((n) => n.id === statsNotificationId)?.title ??
+    "Notification";
 
   const columns = useMemo<ColumnDef<AdminNotificationListItem>[]>(
     () => [
@@ -86,7 +87,9 @@ export function NotificationsTable() {
         accessorKey: "kind",
         header: "Kind",
         cell: ({ getValue }) => (
-          <span className="text-xs">{getValue<string>().replace(/_/g, " ")}</span>
+          <span className="text-xs">
+            {getValue<string>().replace(/_/g, " ")}
+          </span>
         ),
       },
       {
@@ -116,16 +119,14 @@ export function NotificationsTable() {
           <Button
             size="sm"
             variant="secondary"
-            onClick={() =>
-              setPanel({ type: "stats", notification: row.original })
-            }
+            onClick={() => openStats(row.original.id)}
           >
             Delivery stats
           </Button>
         ),
       },
     ],
-    [],
+    [openStats],
   );
 
   const table = useReactTable({
@@ -152,7 +153,7 @@ export function NotificationsTable() {
             setPanel({ type: "compose" });
           }}
         >
-          Compose broadcast / campaign
+          Broadcast
         </Button>
         <Button
           variant="secondary"
@@ -211,6 +212,10 @@ export function NotificationsTable() {
                 <option value="failed">Failed</option>
               </Select>
             </div>
+            <ReloadButton
+              onReload={() => listQuery.refetch()}
+              loading={listQuery.isFetching}
+            />
           </>
         }
         footer={
@@ -256,7 +261,10 @@ export function NotificationsTable() {
                 <tr key={row.id}>
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -298,7 +306,16 @@ export function NotificationsTable() {
             </div>
             <div>
               <Label htmlFor="bc-priority">Priority</Label>
-              <Select id="bc-priority" {...broadcastForm.register("priority")}>
+              <Select
+                id="bc-priority"
+                value={broadcastForm.watch("priority")}
+                onChange={(e) =>
+                  broadcastForm.setValue(
+                    "priority",
+                    e.target.value as "normal" | "high" | "urgent",
+                  )
+                }
+              >
                 <option value="normal">Normal</option>
                 <option value="high">High</option>
                 <option value="urgent">Urgent</option>
@@ -306,15 +323,24 @@ export function NotificationsTable() {
             </div>
             <div>
               <Label htmlFor="bc-schedule">Schedule at (optional)</Label>
-              <Input
+              <DatePicker
                 id="bc-schedule"
-                type="datetime-local"
-                {...broadcastForm.register("scheduleAt")}
+                includeTime
+                value={broadcastForm.watch("scheduleAt") ?? ""}
+                onChange={(e) =>
+                  broadcastForm.setValue("scheduleAt", e.target.value)
+                }
               />
             </div>
             <div>
               <Label htmlFor="bc-blood">Blood type filter</Label>
-              <Select id="bc-blood" {...broadcastForm.register("bloodType")}>
+              <Select
+                id="bc-blood"
+                value={broadcastForm.watch("bloodType") ?? ""}
+                onChange={(e) =>
+                  broadcastForm.setValue("bloodType", e.target.value)
+                }
+              >
                 <option value="">Any</option>
                 {BLOOD_TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -329,7 +355,16 @@ export function NotificationsTable() {
             </div>
             <div>
               <Label htmlFor="bc-role">Role</Label>
-              <Select id="bc-role" {...broadcastForm.register("role")}>
+              <Select
+                id="bc-role"
+                value={broadcastForm.watch("role") ?? ""}
+                onChange={(e) =>
+                  broadcastForm.setValue(
+                    "role",
+                    e.target.value as "" | "donor" | "requester" | "both",
+                  )
+                }
+              >
                 <option value="">Any</option>
                 <option value="donor">Donor</option>
                 <option value="requester">Requester</option>
@@ -346,18 +381,22 @@ export function NotificationsTable() {
             </div>
             <div>
               <Label htmlFor="bc-from">Last donation from</Label>
-              <Input
+              <DatePicker
                 id="bc-from"
-                type="date"
-                {...broadcastForm.register("lastDonationFrom")}
+                value={broadcastForm.watch("lastDonationFrom") ?? ""}
+                onChange={(e) =>
+                  broadcastForm.setValue("lastDonationFrom", e.target.value)
+                }
               />
             </div>
             <div>
               <Label htmlFor="bc-to">Last donation to</Label>
-              <Input
+              <DatePicker
                 id="bc-to"
-                type="date"
-                {...broadcastForm.register("lastDonationTo")}
+                value={broadcastForm.watch("lastDonationTo") ?? ""}
+                onChange={(e) =>
+                  broadcastForm.setValue("lastDonationTo", e.target.value)
+                }
               />
             </div>
             {broadcastMutation.error instanceof ApiRequestError ? (
@@ -421,11 +460,9 @@ export function NotificationsTable() {
         </Modal>
       ) : null}
 
-      {panel?.type === "stats" ? (
-        <Modal title="Delivery stats" onClose={closePanel}>
-          <p className="text-sm text-[var(--ink-muted)]">
-            {panel.notification.title}
-          </p>
+      {statsNotificationId ? (
+        <Modal title="Delivery stats" onClose={clearStats}>
+          <p className="text-sm text-[var(--ink-muted)]">{statsTitle}</p>
           {statsQuery.isLoading ? (
             <EmptyState title="Loading stats…" />
           ) : statsQuery.isError ? (
@@ -446,7 +483,7 @@ export function NotificationsTable() {
             </dl>
           ) : null}
           <div className="mt-4 flex justify-end">
-            <Button variant="secondary" onClick={closePanel}>
+            <Button variant="secondary" onClick={clearStats}>
               Close
             </Button>
           </div>

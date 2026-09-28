@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ReloadButton } from "@/components/ui/reload-button";
 import { useSettings } from "@/hooks/use-settings";
 import { ApiRequestError } from "@/lib/api/client";
 import { formatDate } from "@/lib/utils";
@@ -29,6 +30,12 @@ export function SettingsTable() {
 
   return (
     <div className="max-w-xl rounded-lg border border-[var(--border)] bg-white p-6">
+      <div className="mb-5 flex justify-end">
+        <ReloadButton
+          onReload={() => settingsQuery.refetch()}
+          loading={settingsQuery.isFetching}
+        />
+      </div>
       <form
         className="space-y-5"
         onSubmit={form.handleSubmit((values) => updateMutation.mutate(values))}

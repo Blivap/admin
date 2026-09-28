@@ -14,18 +14,19 @@ import {
 } from "recharts";
 
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { ApiRequestError } from "@/lib/api/client";
 import type { AnalyticsParams } from "@/types";
 
 export function AnalyticsDashboard({
-  initialParams,
+  initialParams: _initialParams,
 }: {
-  initialParams: AnalyticsParams;
+  initialParams?: AnalyticsParams;
 }) {
   const {
     draftFrom,
@@ -36,6 +37,7 @@ export function AnalyticsDashboard({
     setGroupBy,
     applyFilters,
     overviewQuery,
+    donorsQuery,
     requestsQuery,
     exportMutation,
     donorChart,
@@ -43,25 +45,33 @@ export function AnalyticsDashboard({
     requestsOverTime,
     anyLoading,
     anyError,
-  } = useAnalytics(initialParams);
+  } = useAnalytics();
+
+  const reload = () => {
+    void overviewQuery.refetch();
+    void donorsQuery.refetch();
+    void requestsQuery.refetch();
+  };
+  const reloading =
+    overviewQuery.isFetching ||
+    donorsQuery.isFetching ||
+    requestsQuery.isFetching;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-white p-4 sm:flex-row sm:items-end">
         <div>
           <Label htmlFor="from">From</Label>
-          <Input
+          <DatePicker
             id="from"
-            type="date"
             value={draftFrom}
             onChange={(e) => setDraftFrom(e.target.value)}
           />
         </div>
         <div>
           <Label htmlFor="to">To</Label>
-          <Input
+          <DatePicker
             id="to"
-            type="date"
             value={draftTo}
             onChange={(e) => setDraftTo(e.target.value)}
           />
@@ -83,6 +93,7 @@ export function AnalyticsDashboard({
         <Button variant="secondary" onClick={applyFilters}>
           Apply
         </Button>
+        <ReloadButton onReload={reload} loading={reloading} />
         <Button
           className="sm:ml-auto"
           onClick={() => exportMutation.mutate()}

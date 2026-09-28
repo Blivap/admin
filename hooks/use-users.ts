@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -20,6 +20,8 @@ import { errorMessage } from "@/lib/error-message";
 import { queryKeys } from "@/lib/query-keys";
 import type { UsersListParams } from "@/types";
 
+import { toPositiveInt, useUrlParams } from "./use-url-params";
+
 export const suspendSchema = z.object({
   reason: z.string().min(5, "Provide a reason (at least 5 characters)"),
 });
@@ -32,28 +34,65 @@ export const mergeSchema = z.object({
 export type SuspendFormValues = z.infer<typeof suspendSchema>;
 export type MergeFormValues = z.infer<typeof mergeSchema>;
 
-const defaultParams: UsersListParams = {
-  page: 1,
-  pageSize: 20,
+const urlDefaults = {
+  page: "1",
+  pageSize: "20",
   query: "",
   bloodType: "",
   status: "",
   role: "",
   location: "",
+  userId: "",
 };
 
 export function useUsers({
-  detailUserId = "",
   onActionSuccess,
 }: {
-  detailUserId?: string;
   onActionSuccess?: () => void;
 } = {}) {
   const queryClient = useQueryClient();
   const { toast } = useSnackbar();
-  const [params, setParams] = useState<UsersListParams>(defaultParams);
-  const [draftQuery, setDraftQuery] = useState("");
-  const [draftLocation, setDraftLocation] = useState("");
+  const [url, setUrl] = useUrlParams(urlDefaults);
+
+  const params: UsersListParams = {
+    page: toPositiveInt(url.page, 1),
+    pageSize: toPositiveInt(url.pageSize, 20),
+    query: url.query,
+    bloodType: url.bloodType as UsersListParams["bloodType"],
+    status: url.status as UsersListParams["status"],
+    role: url.role as UsersListParams["role"],
+    location: url.location,
+  };
+
+  const detailUserId = url.userId;
+  const [draftQuery, setDraftQuery] = useState(url.query);
+  const [draftLocation, setDraftLocation] = useState(url.location);
+
+  useEffect(() => {
+    setDraftQuery(url.query);
+    setDraftLocation(url.location);
+  }, [url.query, url.location]);
+
+  const setParams = (
+    patch:
+      | Partial<UsersListParams>
+      | ((prev: UsersListParams) => UsersListParams),
+  ) => {
+    const next = typeof patch === "function" ? patch(params) : { ...params, ...patch };
+    setUrl({
+      page: String(next.page ?? 1),
+      pageSize: String(next.pageSize ?? 20),
+      query: next.query ?? "",
+      bloodType: (next.bloodType as string) ?? "",
+      status: (next.status as string) ?? "",
+      role: (next.role as string) ?? "",
+      location: next.location ?? "",
+      userId: url.userId,
+    });
+  };
+
+  const openUser = (userId: string) => setUrl({ userId });
+  const clearUser = () => setUrl({ userId: "" });
 
   const listQuery = useQuery({
     queryKey: queryKeys.users.list(params),
@@ -169,12 +208,11 @@ export function useUsers({
   });
 
   const applyFilters = () =>
-    setParams((prev) => ({
-      ...prev,
+    setUrl({
       query: draftQuery,
       location: draftLocation,
-      page: 1,
-    }));
+      page: "1",
+    });
 
   return {
     params,
@@ -184,6 +222,9 @@ export function useUsers({
     draftLocation,
     setDraftLocation,
     applyFilters,
+    detailUserId,
+    openUser,
+    clearUser,
     listQuery,
     detailQuery,
     suspendForm,

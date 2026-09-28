@@ -3,8 +3,10 @@ import {
   HydrationBoundary,
   QueryClient,
 } from "@tanstack/react-query";
+import { Suspense } from "react";
 
 import { PageHeader } from "@/components/ui/page-header";
+import { TableSkeleton } from "@/components/ui/skeletons";
 import { listNotificationHistory } from "@/lib/api/notifications";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -30,7 +32,9 @@ export default async function NotificationsPage() {
         description="Monitor auto urgent broadcasts and compose system announcements, campaigns, DMs, and re-engagement nudges."
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
-        <NotificationsTable />
+        <Suspense fallback={<TableSkeleton columns={6} rows={8} />}>
+          <NotificationsTable />
+        </Suspense>
       </HydrationBoundary>
     </>
   );

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
 import { QueryError } from "@/components/ui/query-error";
+import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
 import {
   DetailPanelSkeleton,
@@ -35,7 +36,6 @@ import type {
 } from "@/types";
 
 type Panel =
-  | { type: "detail"; userId: string }
   | { type: "suspend"; user: AdminUserListItem }
   | { type: "merge"; user: AdminUserListItem }
   | null;
@@ -53,9 +53,8 @@ function statusTone(status: UserStatus) {
 
 export function UsersTable() {
   const [panel, setPanel] = useState<Panel>(null);
-  const closePanel = useCallback(() => setPanel(null), []);
+  const closeActionPanel = useCallback(() => setPanel(null), []);
 
-  const detailUserId = panel?.type === "detail" ? panel.userId : "";
   const {
     params,
     setParams,
@@ -64,6 +63,9 @@ export function UsersTable() {
     draftLocation,
     setDraftLocation,
     applyFilters,
+    detailUserId,
+    openUser,
+    clearUser,
     listQuery,
     detailQuery,
     suspendForm,
@@ -73,7 +75,7 @@ export function UsersTable() {
     verifyMutation,
     resetPasswordMutation,
     mergeMutation,
-  } = useUsers({ detailUserId, onActionSuccess: closePanel });
+  } = useUsers({ onActionSuccess: closeActionPanel });
 
   const columns = useMemo<ColumnDef<AdminUserListItem>[]>(
     () => [
@@ -84,7 +86,7 @@ export function UsersTable() {
           <button
             type="button"
             className="text-left"
-            onClick={() => setPanel({ type: "detail", userId: row.original.id })}
+            onClick={() => openUser(row.original.id)}
           >
             <p className="font-medium text-[var(--brand)] hover:underline">
               {fullName(row.original.firstname, row.original.lastname)}
@@ -149,7 +151,7 @@ export function UsersTable() {
               <Button
                 size="sm"
                 variant="secondary"
-                onClick={() => setPanel({ type: "detail", userId: user.id })}
+                onClick={() => openUser(user.id)}
               >
                 View
               </Button>
@@ -179,7 +181,7 @@ export function UsersTable() {
         },
       },
     ],
-    [reactivateMutation, suspendForm],
+    [openUser, reactivateMutation, suspendForm],
   );
 
   const table = useReactTable({
@@ -277,6 +279,10 @@ export function UsersTable() {
             <Button variant="secondary" onClick={applyFilters}>
               Apply
             </Button>
+            <ReloadButton
+              onReload={() => listQuery.refetch()}
+              loading={listQuery.isFetching}
+            />
           </>
         }
         footer={
@@ -333,8 +339,8 @@ export function UsersTable() {
         )}
       </TableShell>
 
-      {panel?.type === "detail" ? (
-        <Modal title="User detail" onClose={closePanel} wide>
+      {detailUserId ? (
+        <Modal title="User detail" onClose={clearUser} wide>
           {detailQuery.isLoading ? (
             <DetailPanelSkeleton />
           ) : detailQuery.isError ? (
@@ -496,7 +502,7 @@ export function UsersTable() {
                   size="sm"
                   variant="ghost"
                   className="ml-auto"
-                  onClick={closePanel}
+                  onClick={closeActionPanel}
                 >
                   Close
                 </Button>
@@ -520,7 +526,7 @@ export function UsersTable() {
       ) : null}
 
       {panel?.type === "suspend" ? (
-        <Modal title="Suspend user" onClose={closePanel}>
+        <Modal title="Suspend user" onClose={closeActionPanel}>
           <p className="text-sm text-[var(--ink-muted)]">
             {fullName(panel.user.firstname, panel.user.lastname)} (
             {panel.user.email})
@@ -552,7 +558,7 @@ export function UsersTable() {
               </p>
             ) : null}
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={closePanel}>
+              <Button type="button" variant="secondary" onClick={closeActionPanel}>
                 Cancel
               </Button>
               <Button
@@ -568,7 +574,7 @@ export function UsersTable() {
       ) : null}
 
       {panel?.type === "merge" ? (
-        <Modal title="Merge duplicate accounts" onClose={closePanel}>
+        <Modal title="Merge duplicate accounts" onClose={closeActionPanel}>
           <p className="text-sm text-[var(--ink-muted)]">
             Merge{" "}
             <strong>
@@ -609,7 +615,7 @@ export function UsersTable() {
               </p>
             ) : null}
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={closePanel}>
+              <Button type="button" variant="secondary" onClick={closeActionPanel}>
                 Cancel
               </Button>
               <Button type="submit" disabled={mergeMutation.isPending}>

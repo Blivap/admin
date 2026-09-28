@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -14,6 +13,8 @@ import {
 } from "@/lib/api/notifications";
 import { queryKeys } from "@/lib/query-keys";
 import type { BloodType, NotificationsListParams } from "@/types";
+
+import { toPositiveInt, useUrlParams } from "./use-url-params";
 
 export const broadcastSchema = z.object({
   title: z.string().min(3, "Title is required"),
@@ -38,23 +39,51 @@ export const dmSchema = z.object({
 export type BroadcastFormValues = z.infer<typeof broadcastSchema>;
 export type DmFormValues = z.infer<typeof dmSchema>;
 
-const defaultParams: NotificationsListParams = {
-  page: 1,
-  pageSize: 20,
+const urlDefaults = {
+  page: "1",
+  pageSize: "20",
   query: "",
   kind: "",
   status: "",
+  statsId: "",
 };
 
 export function useNotifications({
-  statsNotificationId = "",
   onActionSuccess,
 }: {
-  statsNotificationId?: string;
   onActionSuccess?: () => void;
 } = {}) {
   const queryClient = useQueryClient();
-  const [params, setParams] = useState<NotificationsListParams>(defaultParams);
+  const [url, setUrl] = useUrlParams(urlDefaults);
+
+  const params: NotificationsListParams = {
+    page: toPositiveInt(url.page, 1),
+    pageSize: toPositiveInt(url.pageSize, 20),
+    query: url.query,
+    kind: url.kind as NotificationsListParams["kind"],
+    status: url.status as NotificationsListParams["status"],
+  };
+
+  const statsNotificationId = url.statsId;
+
+  const setParams = (
+    patch:
+      | Partial<NotificationsListParams>
+      | ((prev: NotificationsListParams) => NotificationsListParams),
+  ) => {
+    const next = typeof patch === "function" ? patch(params) : { ...params, ...patch };
+    setUrl({
+      page: String(next.page ?? 1),
+      pageSize: String(next.pageSize ?? 20),
+      query: next.query ?? "",
+      kind: (next.kind as string) ?? "",
+      status: (next.status as string) ?? "",
+      statsId: url.statsId,
+    });
+  };
+
+  const openStats = (id: string) => setUrl({ statsId: id });
+  const clearStats = () => setUrl({ statsId: "" });
 
   const listQuery = useQuery({
     queryKey: queryKeys.notifications.history(params),
@@ -133,6 +162,9 @@ export function useNotifications({
   return {
     params,
     setParams,
+    statsNotificationId,
+    openStats,
+    clearStats,
     listQuery,
     statsQuery,
     broadcastForm,

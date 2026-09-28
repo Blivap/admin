@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ReloadButton } from "@/components/ui/reload-button";
 import { Textarea } from "@/components/ui/textarea";
 import { newCmsId, useCms } from "@/hooks/use-cms";
 import { ApiRequestError } from "@/lib/api/client";
@@ -31,6 +32,12 @@ export function CmsEditor() {
       className="space-y-8"
       onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}
     >
+      <div className="flex justify-end">
+        <ReloadButton
+          onReload={() => cmsQuery.refetch()}
+          loading={cmsQuery.isFetching}
+        />
+      </div>
       <Section
         title="Landing sections"
         onAdd={() =>

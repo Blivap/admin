@@ -3,8 +3,10 @@ import {
   HydrationBoundary,
   QueryClient,
 } from "@tanstack/react-query";
+import { Suspense } from "react";
 
 import { PageHeader } from "@/components/ui/page-header";
+import { TableSkeleton } from "@/components/ui/skeletons";
 import { listRequests } from "@/lib/api/requests";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -30,7 +32,9 @@ export default async function RequestsPage() {
         description="Filter by status, blood type, urgency, and region. Assign donors, escalate, rematch, or rebroadcast."
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
-        <RequestsTable />
+        <Suspense fallback={<TableSkeleton columns={8} rows={8} />}>
+          <RequestsTable />
+        </Suspense>
       </HydrationBoundary>
     </>
   );

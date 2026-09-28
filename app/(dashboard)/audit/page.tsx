@@ -3,8 +3,10 @@ import {
   HydrationBoundary,
   QueryClient,
 } from "@tanstack/react-query";
+import { Suspense } from "react";
 
 import { PageHeader } from "@/components/ui/page-header";
+import { TableSkeleton } from "@/components/ui/skeletons";
 import { listAuditLogs } from "@/lib/api/audit";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -30,7 +32,9 @@ export default async function AuditPage() {
         description="Read-only trail of admin actions. Mutations are logged server-side by AuditInterceptor — this UI never writes logs."
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
-        <AuditTable />
+        <Suspense fallback={<TableSkeleton columns={5} rows={8} />}>
+          <AuditTable />
+        </Suspense>
       </HydrationBoundary>
     </>
   );

@@ -9,10 +9,11 @@ import {
 import { useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/ui/pagination";
+import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
 import { TableShell } from "@/components/ui/table-shell";
 import { AUDIT_ACTION_OPTIONS, useAudit } from "@/hooks/use-audit";
@@ -109,18 +110,16 @@ export function AuditTable() {
           </div>
           <div>
             <Label htmlFor="audit-from">From</Label>
-            <Input
+            <DatePicker
               id="audit-from"
-              type="date"
               value={draftFrom}
               onChange={(e) => setDraftFrom(e.target.value)}
             />
           </div>
           <div>
             <Label htmlFor="audit-to">To</Label>
-            <Input
+            <DatePicker
               id="audit-to"
-              type="date"
               value={draftTo}
               onChange={(e) => setDraftTo(e.target.value)}
             />
@@ -128,6 +127,10 @@ export function AuditTable() {
           <Button variant="secondary" onClick={applyFilters}>
             Apply
           </Button>
+          <ReloadButton
+            onReload={() => listQuery.refetch()}
+            loading={listQuery.isFetching}
+          />
         </>
       }
       footer={

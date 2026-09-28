@@ -10,6 +10,7 @@ export function useOverview() {
     queryKey: queryKeys.overview.all,
     queryFn: getOverview,
     refetchInterval: 60_000,
+    refetchOnMount: "always",
   });
 
   return { overviewQuery };

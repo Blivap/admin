@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QueryError } from "@/components/ui/query-error";
+import { ReloadButton } from "@/components/ui/reload-button";
 import { OverviewSkeleton } from "@/components/ui/skeletons";
 import { useOverview } from "@/hooks/use-overview";
 import { formatDate } from "@/lib/utils";
@@ -43,6 +44,12 @@ export function OverviewPanel() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <ReloadButton
+          onReload={() => overviewQuery.refetch()}
+          loading={overviewQuery.isFetching}
+        />
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Active donors" value={stats?.activeDonors ?? 0} />
         <StatCard label="Pending requests" value={stats?.pendingRequests ?? 0} />

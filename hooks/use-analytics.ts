@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { formatISO, subDays } from "date-fns";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   exportAnalyticsCsv,
@@ -13,18 +13,45 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 import type { AnalyticsParams } from "@/types";
 
-export function useAnalytics(initialParams: AnalyticsParams) {
-  const [params, setParams] = useState<AnalyticsParams>(initialParams);
-  const [draftFrom, setDraftFrom] = useState(
-    params.from ??
-      formatISO(subDays(new Date(), 30), { representation: "date" }),
-  );
-  const [draftTo, setDraftTo] = useState(
-    params.to ?? formatISO(new Date(), { representation: "date" }),
-  );
-  const [groupBy, setGroupBy] = useState<"region" | "bloodType" | "time">(
-    "bloodType",
-  );
+import { useUrlParams } from "./use-url-params";
+
+function defaultFrom() {
+  return formatISO(subDays(new Date(), 30), { representation: "date" });
+}
+
+function defaultTo() {
+  return formatISO(new Date(), { representation: "date" });
+}
+
+const urlDefaults = {
+  from: "",
+  to: "",
+  groupBy: "bloodType",
+};
+
+export function useAnalytics(_initialParams?: AnalyticsParams) {
+  const [url, setUrl] = useUrlParams(urlDefaults);
+
+  const params: AnalyticsParams = {
+    from: url.from || defaultFrom(),
+    to: url.to || defaultTo(),
+  };
+
+  const groupBy = (url.groupBy || "bloodType") as
+    | "region"
+    | "bloodType"
+    | "time";
+
+  const [draftFrom, setDraftFrom] = useState(params.from!);
+  const [draftTo, setDraftTo] = useState(params.to!);
+
+  useEffect(() => {
+    setDraftFrom(params.from!);
+    setDraftTo(params.to!);
+  }, [params.from, params.to]);
+
+  const setGroupBy = (next: "region" | "bloodType" | "time") =>
+    setUrl({ groupBy: next });
 
   const overviewQuery = useQuery({
     queryKey: queryKeys.analytics.overview(params),
@@ -44,12 +71,12 @@ export function useAnalytics(initialParams: AnalyticsParams) {
   const exportMutation = useMutation({
     mutationFn: () => exportAnalyticsCsv(params),
     onSuccess: (blob) => {
-      const url = URL.createObjectURL(blob);
+      const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
+      a.href = objectUrl;
       a.download = `blivap-analytics-${params.from}-${params.to}.csv`;
       a.click();
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(objectUrl);
     },
   });
 
@@ -67,7 +94,8 @@ export function useAnalytics(initialParams: AnalyticsParams) {
   const anyError =
     overviewQuery.isError || donorsQuery.isError || requestsQuery.isError;
 
-  const applyFilters = () => setParams({ from: draftFrom, to: draftTo });
+  const applyFilters = () =>
+    setUrl({ from: draftFrom, to: draftTo });
 
   return {
     params,
