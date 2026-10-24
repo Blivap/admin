@@ -1,6 +1,7 @@
 import type {
   AnalyticsParams,
   AuditLogsListParams,
+  HospitalsListParams,
   NotificationsListParams,
   RequestsListParams,
   UsersListParams,
@@ -49,6 +50,14 @@ export const queryKeys = {
   },
   settings: {
     all: ["settings"] as const,
+  },
+  welfare: {
+    all: ["welfare"] as const,
+  },
+  hospitals: {
+    all: ["hospitals"] as const,
+    list: (params: HospitalsListParams) =>
+      ["hospitals", "list", params] as const,
   },
   audit: {
     all: ["audit"] as const,

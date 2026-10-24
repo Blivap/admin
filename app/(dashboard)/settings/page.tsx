@@ -26,7 +26,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        description="Matching radius, eligibility interval, and maintenance mode — changes are audit-logged by the API."
+        description="Matching, maintenance mode, and welfare reimbursement tariff — changes are audit-logged by the API."
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
         <SettingsTable />

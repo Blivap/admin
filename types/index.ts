@@ -479,6 +479,22 @@ export interface AnalyticsParams {
 
 /* ── Settings ─────────────────────────────────────────────────────── */
 
+/** Distance band for welfare trip allowance (amounts in kobo). */
+export interface WelfareDistanceBand {
+  /** Inclusive upper bound in km for this band. */
+  maxKm: number;
+  /** Allowance in kobo for trips within this band. */
+  amountKobo: number;
+}
+
+export interface WelfareTariff {
+  distanceBands: WelfareDistanceBand[];
+  refreshmentKobo: number;
+  otherEligibleKobo: number;
+  /** Maximum total welfare amount in kobo for one booking. */
+  capKobo: number;
+}
+
 export interface AdminSettings {
   eligibilityIntervalDays: number;
   matchingRadiusKm: number;
@@ -486,20 +502,62 @@ export interface AdminSettings {
   escalationTimeoutMinutes: number;
   unmatchedAlertThresholdMinutes: number;
   maintenanceMode: boolean;
+  /** When false, booking screens keep today’s (non-welfare) flow. */
+  welfareReimbursementEnabled?: boolean;
+  welfareTariff?: WelfareTariff | null;
   updatedAt?: string;
   updatedByName?: string | null;
 }
 
 export type UpdateSettingsPayload = Partial<
   Omit<AdminSettings, "updatedAt" | "updatedByName">
-> & {
-  eligibilityIntervalDays: number;
-  matchingRadiusKm: number;
-  maxDonorsNotifiedPerRequest: number;
-  escalationTimeoutMinutes: number;
-  unmatchedAlertThresholdMinutes: number;
-  maintenanceMode: boolean;
-};
+>;
+
+/* ── Welfare packages ─────────────────────────────────────────────── */
+
+/** Care item donors can arrange. Amounts are kobo. */
+export interface WelfarePackage {
+  id: string;
+  code: string;
+  title: string;
+  detail: string;
+  amountKobo: number;
+  sortOrder: number;
+  active: boolean;
+}
+
+export interface CreateWelfarePackagePayload {
+  title: string;
+  detail: string;
+  amountKobo: number;
+  sortOrder?: number;
+  active?: boolean;
+}
+
+export type UpdateWelfarePackagePayload = Partial<CreateWelfarePackagePayload>;
+
+/* ── Hospitals ────────────────────────────────────────────────────── */
+
+export interface AdminHospitalListItem {
+  id: string;
+  name: string;
+  city?: string | null;
+  state?: string | null;
+  region?: string | null;
+  address?: string | null;
+  authorizedBloodCollection: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface HospitalsListParams extends ListParams {
+  query?: string;
+  authorizedBloodCollection?: boolean | "";
+}
+
+export interface UpdateBloodCollectionAuthorizationPayload {
+  authorizedBloodCollection: boolean;
+}
 
 /* ── Audit Log ────────────────────────────────────────────────────── */
 
