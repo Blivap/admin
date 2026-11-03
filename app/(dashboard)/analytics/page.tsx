@@ -60,7 +60,7 @@ export default async function AnalyticsPage() {
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
         <Suspense fallback={<AnalyticsFallback />}>
-          <AnalyticsDashboard initialParams={defaultParams} />
+          <AnalyticsDashboard />
         </Suspense>
       </HydrationBoundary>
     </>

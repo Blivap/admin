@@ -21,13 +21,8 @@ import { ReloadButton } from "@/components/ui/reload-button";
 import { Select } from "@/components/ui/select";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { ApiRequestError } from "@/lib/api/client";
-import type { AnalyticsParams } from "@/types";
 
-export function AnalyticsDashboard({
-  initialParams: _initialParams,
-}: {
-  initialParams?: AnalyticsParams;
-}) {
+export function AnalyticsDashboard() {
   const {
     draftFrom,
     setDraftFrom,
