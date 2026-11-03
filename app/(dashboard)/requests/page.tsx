@@ -29,7 +29,7 @@ export default async function RequestsPage() {
     <>
       <PageHeader
         title="Blood Request Management"
-        description="Filter by status, blood type, urgency, and region. Assign donors, escalate, rematch, or rebroadcast."
+        description="Supervise needs — not the happy path. Status is derived from the request + bookings. Assign creates a booking; escalate / rematch / rebroadcast re-run discovery."
       />
       <HydrationBoundary state={dehydrate(queryClient)}>
         <Suspense fallback={<TableSkeleton columns={8} rows={8} />}>

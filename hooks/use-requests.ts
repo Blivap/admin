@@ -31,15 +31,74 @@ export const escalateSchema = z.object({
   radiusKm: z.coerce.number().min(1).max(200).optional(),
 });
 
-export const rebroadcastSchema = z.object({
-  mode: z.enum(["same", "wider_radius", "force_donor"]),
-  radiusKm: z.coerce.number().min(1).max(200).optional(),
-  donorId: z.string().optional(),
+export const rebroadcastSchema = z
+  .object({
+    mode: z.enum(["same", "wider_radius", "force_donor"]),
+    radiusKm: z.coerce.number().min(1).max(200).optional(),
+    donorId: z.string().optional(),
+  })
+  .superRefine((values, ctx) => {
+    if (values.mode === "force_donor" && !values.donorId?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Donor ID is required for force-notify",
+        path: ["donorId"],
+      });
+    }
+  });
+
+/** Admin write targets — labels map to derived UI statuses stored on the domain. */
+export const statusSchema = z.object({
+  status: z.enum(["active", "matched", "fulfilled", "expired", "cancelled"]),
+  reason: z.string().optional(),
+});
+
+export const rematchSchema = z.object({
+  note: z.string().optional(),
 });
 
 export type AssignFormValues = z.infer<typeof assignSchema>;
 export type EscalateFormValues = z.infer<typeof escalateSchema>;
 export type RebroadcastFormValues = z.infer<typeof rebroadcastSchema>;
+export type StatusFormValues = z.infer<typeof statusSchema>;
+export type RematchFormValues = z.infer<typeof rematchSchema>;
+
+/** Ops interventions are for open needs — not terminal outcomes. */
+export function canIntervene(status: BloodRequestStatus) {
+  return status === "active" || status === "matched";
+}
+
+export const STATUS_WRITE_OPTIONS: {
+  value: BloodRequestStatus;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "active",
+    label: "Reopen (open)",
+    hint: "Writes stored status open",
+  },
+  {
+    value: "matched",
+    label: "Mark matched",
+    hint: "Writes stored status matched",
+  },
+  {
+    value: "fulfilled",
+    label: "Fulfill (closed)",
+    hint: "Writes stored status closed",
+  },
+  {
+    value: "expired",
+    label: "Expire",
+    hint: "Force-expire the need",
+  },
+  {
+    value: "cancelled",
+    label: "Cancel",
+    hint: "Cancel the need",
+  },
+];
 
 const urlDefaults = {
   page: "1",
@@ -89,7 +148,8 @@ export function useRequests({
       | Partial<RequestsListParams>
       | ((prev: RequestsListParams) => RequestsListParams),
   ) => {
-    const next = typeof patch === "function" ? patch(params) : { ...params, ...patch };
+    const next =
+      typeof patch === "function" ? patch(params) : { ...params, ...patch };
     setUrl({
       page: String(next.page ?? 1),
       pageSize: String(next.pageSize ?? 20),
@@ -134,7 +194,15 @@ export function useRequests({
   });
   const rebroadcastForm = useForm<RebroadcastFormValues>({
     resolver: zodResolver(rebroadcastSchema),
-    defaultValues: { mode: "same" },
+    defaultValues: { mode: "same", donorId: "", radiusKm: undefined },
+  });
+  const statusForm = useForm<StatusFormValues>({
+    resolver: zodResolver(statusSchema),
+    defaultValues: { status: "cancelled", reason: "" },
+  });
+  const rematchForm = useForm<RematchFormValues>({
+    resolver: zodResolver(rematchSchema),
+    defaultValues: { note: "" },
   });
 
   const invalidate = async () => {
@@ -160,19 +228,35 @@ export function useRequests({
   });
 
   const rematchMutation = useMutation({
-    mutationFn: (id: string) => rematchRequest(id),
-    onSuccess: invalidate,
+    mutationFn: ({
+      id,
+      values,
+    }: {
+      id: string;
+      values?: RematchFormValues;
+    }) => rematchRequest(id, { note: values?.note }),
+    onSuccess: async () => {
+      rematchForm.reset({ note: "" });
+      onActionSuccess?.();
+      await invalidate();
+    },
   });
 
   const statusMutation = useMutation({
     mutationFn: ({
       id,
       status,
+      reason,
     }: {
       id: string;
       status: BloodRequestStatus;
-    }) => updateRequestStatus(id, { status }),
-    onSuccess: invalidate,
+      reason?: string;
+    }) => updateRequestStatus(id, { status, reason }),
+    onSuccess: async () => {
+      statusForm.reset({ status: "cancelled", reason: "" });
+      onActionSuccess?.();
+      await invalidate();
+    },
   });
 
   const rebroadcastMutation = useMutation({
@@ -214,6 +298,8 @@ export function useRequests({
     assignForm,
     escalateForm,
     rebroadcastForm,
+    statusForm,
+    rematchForm,
     assignMutation,
     escalateMutation,
     rematchMutation,

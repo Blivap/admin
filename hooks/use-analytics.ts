@@ -29,7 +29,7 @@ const urlDefaults = {
   groupBy: "bloodType",
 };
 
-export function useAnalytics(_initialParams?: AnalyticsParams) {
+export function useAnalytics() {
   const [url, setUrl] = useUrlParams(urlDefaults);
 
   const params: AnalyticsParams = {

@@ -32,10 +32,12 @@ Mutating actions are **never** audited from the frontend; NestJS `AuditIntercept
 | Route | Purpose |
 |-------|---------|
 | `/overview` | Live stats, 30-day chart, unmatched urgent alerts |
-| `/users` | Filterable users, detail, suspend/reactivate/verify/reset/merge |
-| `/requests` | Request ops, match log, assign/escalate/rematch/rebroadcast |
-| `/notifications` | Auto-broadcast history + admin campaigns / DMs |
-| `/verifications` | Approve / reject / flag queue |
+| `/users` | List/detail, edit profile, suspend/reactivate, force-verify email/NIN, grant donor retry, reset password, merge |
+| `/requests` | Ops queue for blood needs; derived status; assign (booking), escalate/rematch/rebroadcast, linked bookings |
+| `/hospitals` | Create facilities, set blood-collection authorization |
+| `/welfare` | Welfare package CRUD |
+| `/notifications` | History + delivery stats, broadcast, DM, system-update queue |
+| `/verifications` | Case detail + approve / reject / flag |
 | `/cms` | Landing copy, FAQs, testimonials |
 | `/analytics` | Donors/requests metrics + CSV export |
 | `/settings` | Matching, eligibility, alert threshold, maintenance |

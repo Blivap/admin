@@ -31,7 +31,11 @@ import type {
   NotificationKind,
 } from "@/types";
 
-type Panel = { type: "compose" } | { type: "dm" } | null;
+type Panel =
+  | { type: "compose" }
+  | { type: "dm" }
+  | { type: "system-update" }
+  | null;
 
 function statusTone(status: NotificationDeliveryStatus) {
   switch (status) {
@@ -61,8 +65,10 @@ export function NotificationsTable() {
     statsQuery,
     broadcastForm,
     dmForm,
+    systemUpdateForm,
     broadcastMutation,
     dmMutation,
+    systemUpdateMutation,
   } = useNotifications({
     onActionSuccess: closePanel,
   });
@@ -173,6 +179,21 @@ export function NotificationsTable() {
           }}
         >
           Direct message
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            systemUpdateForm.reset({
+              subject: "",
+              title: "",
+              body: "",
+              actionUrl: "",
+              actionLabel: "",
+            });
+            setPanel({ type: "system-update" });
+          }}
+        >
+          Queue system update
         </Button>
       </div>
 
@@ -482,6 +503,98 @@ export function NotificationsTable() {
                 disabled={dmMutation.isPending}
               >
                 {dmMutation.isPending ? "Sending…" : "Send DM"}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
+
+      {panel?.type === "system-update" ? (
+        <Modal title="Queue system-update broadcast" onClose={closePanel} wide>
+          <p className="mb-3 text-sm text-(--ink-muted)">
+            Queues a personalized email to every user with an address. This can
+            take a while on large lists.
+          </p>
+          <form
+            className="space-y-4"
+            onSubmit={systemUpdateForm.handleSubmit((v) =>
+              systemUpdateMutation.mutate(v),
+            )}
+          >
+            <div>
+              <Label htmlFor="su-subject">Email subject</Label>
+              <Input id="su-subject" {...systemUpdateForm.register("subject")} />
+              {systemUpdateForm.formState.errors.subject ? (
+                <p className="mt-1 text-xs text-(--danger)">
+                  {systemUpdateForm.formState.errors.subject.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <Label htmlFor="su-title">Title</Label>
+              <Input id="su-title" {...systemUpdateForm.register("title")} />
+              {systemUpdateForm.formState.errors.title ? (
+                <p className="mt-1 text-xs text-(--danger)">
+                  {systemUpdateForm.formState.errors.title.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <Label htmlFor="su-body">Body</Label>
+              <Textarea id="su-body" {...systemUpdateForm.register("body")} />
+              {systemUpdateForm.formState.errors.body ? (
+                <p className="mt-1 text-xs text-(--danger)">
+                  {systemUpdateForm.formState.errors.body.message}
+                </p>
+              ) : null}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="su-url">Action URL (optional)</Label>
+                <Input
+                  id="su-url"
+                  placeholder="https://…"
+                  {...systemUpdateForm.register("actionUrl")}
+                />
+                {systemUpdateForm.formState.errors.actionUrl ? (
+                  <p className="mt-1 text-xs text-(--danger)">
+                    {systemUpdateForm.formState.errors.actionUrl.message}
+                  </p>
+                ) : null}
+              </div>
+              <div>
+                <Label htmlFor="su-label">Action label (optional)</Label>
+                <Input
+                  id="su-label"
+                  {...systemUpdateForm.register("actionLabel")}
+                />
+              </div>
+            </div>
+            {systemUpdateMutation.isSuccess ? (
+              <p className="text-sm text-emerald-700">
+                Queued {systemUpdateMutation.data.queued} emails.
+              </p>
+            ) : null}
+            {systemUpdateMutation.error instanceof ApiRequestError ? (
+              <p className="text-sm text-(--danger)">
+                {systemUpdateMutation.error.message}
+              </p>
+            ) : null}
+            <div className="flex flex-col-reverse gap-2 border-t border-(--border) pt-4 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full sm:w-auto"
+                onClick={closePanel}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="w-full sm:w-auto"
+                disabled={systemUpdateMutation.isPending}
+              >
+                {systemUpdateMutation.isPending ? "Queuing…" : "Queue broadcast"}
               </Button>
             </div>
           </form>

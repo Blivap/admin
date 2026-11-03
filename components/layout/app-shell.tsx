@@ -22,7 +22,8 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useLogout } from "@/hooks/use-logout";
-import { cn } from "@/lib/utils";
+import { useMe } from "@/hooks/use-me";
+import { cn, fullName } from "@/lib/utils";
 
 const navItems = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
@@ -74,6 +75,12 @@ function SidebarChrome({
   className?: string;
 }) {
   const { mutation: logoutMutation } = useLogout();
+  const meQuery = useMe();
+  const me = meQuery.data;
+  const displayName = me
+    ? fullName(me.firstname, me.lastname) || me.email
+    : null;
+  const rolesLabel = me?.roles?.filter(Boolean).join(", ") || null;
 
   return (
     <aside
@@ -94,7 +101,17 @@ function SidebarChrome({
 
       <NavLinks onNavigate={onNavigate} />
 
-      <div className="border-t border-white/10 p-3">
+      <div className="space-y-2 border-t border-white/10 p-3">
+        {displayName ? (
+          <div className="px-3 py-1">
+            <p className="truncate text-xs font-medium text-white/90">
+              {displayName}
+            </p>
+            {rolesLabel ? (
+              <p className="truncate text-[11px] text-white/45">{rolesLabel}</p>
+            ) : null}
+          </div>
+        ) : null}
         <Button
           variant="ghost"
           className="w-full justify-start text-white/70 hover:bg-white/5 hover:text-white"

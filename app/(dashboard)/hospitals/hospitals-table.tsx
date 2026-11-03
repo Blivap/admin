@@ -6,8 +6,8 @@ import {
   useReactTable,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { Building2 } from "lucide-react";
-import { useMemo } from "react";
+import { Building2, Plus } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { Suspense } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Modal, ModalActions } from "@/components/ui/modal";
 import { Pagination } from "@/components/ui/pagination";
 import { QueryError } from "@/components/ui/query-error";
 import { ReloadButton } from "@/components/ui/reload-button";
@@ -26,6 +27,9 @@ import { ApiRequestError } from "@/lib/api/client";
 import type { AdminHospitalListItem } from "@/types";
 
 function HospitalsTableInner() {
+  const [creating, setCreating] = useState(false);
+  const closeCreate = useCallback(() => setCreating(false), []);
+
   const {
     params,
     setParams,
@@ -33,8 +37,10 @@ function HospitalsTableInner() {
     setDraftQuery,
     applyFilters,
     listQuery,
+    createForm,
+    createMutation,
     authMutation,
-  } = useHospitals();
+  } = useHospitals({ onActionSuccess: closeCreate });
 
   const columns = useMemo<ColumnDef<AdminHospitalListItem>[]>(
     () => [
@@ -132,6 +138,27 @@ function HospitalsTableInner() {
 
   return (
     <>
+      <div className="mb-4">
+        <Button
+          onClick={() => {
+            createMutation.reset();
+            createForm.reset({
+              name: "",
+              addressLine: "",
+              city: "",
+              state: "",
+              latitude: undefined,
+              longitude: undefined,
+              authorizedBloodCollection: false,
+            });
+            setCreating(true);
+          }}
+        >
+          <Plus className="h-4 w-4" />
+          Add facility
+        </Button>
+      </div>
+
       {authMutation.isError ? (
         <p className="mb-3 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-800">
           {authMutation.error instanceof ApiRequestError
@@ -244,6 +271,95 @@ function HospitalsTableInner() {
           </table>
         )}
       </TableShell>
+
+      {creating ? (
+        <Modal title="Create facility" onClose={closeCreate} wide>
+          <form
+            className="grid gap-4 sm:grid-cols-2"
+            onSubmit={createForm.handleSubmit((values) =>
+              createMutation.mutate(values),
+            )}
+          >
+            <div className="sm:col-span-2">
+              <Label htmlFor="h-name">Name</Label>
+              <Input id="h-name" {...createForm.register("name")} />
+              {createForm.formState.errors.name ? (
+                <p className="mt-1 text-xs text-(--danger)">
+                  {createForm.formState.errors.name.message}
+                </p>
+              ) : null}
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="h-address">Address</Label>
+              <Input id="h-address" {...createForm.register("addressLine")} />
+            </div>
+            <div>
+              <Label htmlFor="h-city">City</Label>
+              <Input id="h-city" {...createForm.register("city")} />
+            </div>
+            <div>
+              <Label htmlFor="h-state">State</Label>
+              <Input id="h-state" {...createForm.register("state")} />
+            </div>
+            <div>
+              <Label htmlFor="h-lat">Latitude</Label>
+              <Input
+                id="h-lat"
+                type="number"
+                step="any"
+                {...createForm.register("latitude")}
+              />
+              {createForm.formState.errors.latitude ? (
+                <p className="mt-1 text-xs text-(--danger)">
+                  {createForm.formState.errors.latitude.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <Label htmlFor="h-lng">Longitude</Label>
+              <Input
+                id="h-lng"
+                type="number"
+                step="any"
+                {...createForm.register("longitude")}
+              />
+              {createForm.formState.errors.longitude ? (
+                <p className="mt-1 text-xs text-(--danger)">
+                  {createForm.formState.errors.longitude.message}
+                </p>
+              ) : null}
+            </div>
+            <div className="sm:col-span-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="rounded border-(--border)"
+                  checked={createForm.watch("authorizedBloodCollection")}
+                  onChange={(e) =>
+                    createForm.setValue(
+                      "authorizedBloodCollection",
+                      e.target.checked,
+                    )
+                  }
+                />
+                Authorize blood collection now
+              </label>
+            </div>
+            {createMutation.error instanceof ApiRequestError ? (
+              <p className="sm:col-span-2 text-sm text-(--danger)">
+                {createMutation.error.message}
+              </p>
+            ) : null}
+            <div className="sm:col-span-2">
+              <ModalActions
+                onCancel={closeCreate}
+                pending={createMutation.isPending}
+                label="Create"
+              />
+            </div>
+          </form>
+        </Modal>
+      ) : null}
     </>
   );
 }

@@ -1,16 +1,40 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
+import { useSnackbar } from "@/components/providers/snackbar-provider";
 import {
+  createHospital,
   listHospitals,
   updateBloodCollectionAuthorization,
 } from "@/lib/api/hospitals";
+import { errorMessage } from "@/lib/error-message";
 import { queryKeys } from "@/lib/query-keys";
 import type { HospitalsListParams } from "@/types";
 
 import { toPositiveInt, useUrlParams } from "./use-url-params";
+
+export const createHospitalSchema = z.object({
+  name: z.string().min(2, "Facility name is required"),
+  addressLine: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  latitude: z.coerce
+    .number({ invalid_type_error: "Latitude is required" })
+    .min(-90)
+    .max(90),
+  longitude: z.coerce
+    .number({ invalid_type_error: "Longitude is required" })
+    .min(-180)
+    .max(180),
+  authorizedBloodCollection: z.boolean(),
+});
+
+export type CreateHospitalFormValues = z.infer<typeof createHospitalSchema>;
 
 const urlDefaults = {
   page: "1",
@@ -19,8 +43,13 @@ const urlDefaults = {
   authorized: "",
 };
 
-export function useHospitals() {
+export function useHospitals({
+  onActionSuccess,
+}: {
+  onActionSuccess?: () => void;
+} = {}) {
   const queryClient = useQueryClient();
+  const { toast } = useSnackbar();
   const [url, setUrl] = useUrlParams(urlDefaults);
 
   const params: HospitalsListParams = {
@@ -61,9 +90,64 @@ export function useHospitals() {
     });
   };
 
+  const createForm = useForm<CreateHospitalFormValues>({
+    resolver: zodResolver(createHospitalSchema),
+    defaultValues: {
+      name: "",
+      addressLine: "",
+      city: "",
+      state: "",
+      latitude: undefined,
+      longitude: undefined,
+      authorizedBloodCollection: false,
+    },
+  });
+
   const listQuery = useQuery({
     queryKey: queryKeys.hospitals.list(params),
     queryFn: () => listHospitals(params),
+  });
+
+  const invalidate = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.hospitals.all,
+    });
+  };
+
+  const createMutation = useMutation({
+    mutationFn: (values: CreateHospitalFormValues) =>
+      createHospital({
+        name: values.name.trim(),
+        addressLine: values.addressLine?.trim() || undefined,
+        city: values.city?.trim() || undefined,
+        state: values.state?.trim() || undefined,
+        location: {
+          type: "Point",
+          coordinates: [values.longitude, values.latitude],
+        },
+        authorizedBloodCollection: values.authorizedBloodCollection,
+      }),
+    onSuccess: async () => {
+      createForm.reset({
+        name: "",
+        addressLine: "",
+        city: "",
+        state: "",
+        latitude: undefined,
+        longitude: undefined,
+        authorizedBloodCollection: false,
+      });
+      onActionSuccess?.();
+      await invalidate();
+      toast({ title: "Facility created", tone: "success" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Couldn’t create facility",
+        description: errorMessage(error),
+        tone: "error",
+      });
+    },
   });
 
   const authMutation = useMutation({
@@ -76,8 +160,14 @@ export function useHospitals() {
     }) =>
       updateBloodCollectionAuthorization(id, { authorizedBloodCollection }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.hospitals.all,
+      await invalidate();
+      toast({ title: "Authorization updated", tone: "success" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Couldn’t update authorization",
+        description: errorMessage(error),
+        tone: "error",
       });
     },
   });
@@ -95,6 +185,8 @@ export function useHospitals() {
     setDraftQuery,
     applyFilters,
     listQuery,
+    createForm,
+    createMutation,
     authMutation,
   };
 }

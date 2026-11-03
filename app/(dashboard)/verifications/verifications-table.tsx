@@ -56,7 +56,11 @@ export function VerificationsTable() {
     draftQuery,
     setDraftQuery,
     applyFilters,
+    detailId,
+    openDetail,
+    clearDetail,
     listQuery,
+    detailQuery,
     reasonForm,
     approveMutation,
     rejectMutation,
@@ -69,10 +73,14 @@ export function VerificationsTable() {
         id: "user",
         header: "User",
         cell: ({ row }) => (
-          <div className="max-w-[14rem]">
+          <button
+            type="button"
+            className="max-w-[14rem] text-left"
+            onClick={() => openDetail(row.original.id)}
+          >
             <TruncatedText
               text={row.original.userName}
-              className="font-medium"
+              className="font-medium text-(--brand) hover:underline"
               maxWidthClass="max-w-[14rem]"
             />
             <TruncatedText
@@ -80,7 +88,7 @@ export function VerificationsTable() {
               className="text-xs text-(--ink-muted)"
               maxWidthClass="max-w-[14rem]"
             />
-          </div>
+          </button>
         ),
       },
       {
@@ -112,44 +120,52 @@ export function VerificationsTable() {
         header: "Actions",
         cell: ({ row }) => {
           const item = row.original;
-          if (item.status !== "pending" && item.status !== "flagged") {
-            return <span className="text-xs text-(--ink-subtle)">—</span>;
-          }
           return (
             <div className="flex flex-nowrap gap-1">
               <Button
                 size="sm"
-                disabled={approveMutation.isPending}
-                onClick={() => approveMutation.mutate(item.id)}
-              >
-                Approve
-              </Button>
-              <Button
-                size="sm"
-                variant="danger"
-                onClick={() => {
-                  reasonForm.reset({ reason: "" });
-                  setPanel({ type: "reject", item });
-                }}
-              >
-                Reject
-              </Button>
-              <Button
-                size="sm"
                 variant="secondary"
-                onClick={() => {
-                  reasonForm.reset({ reason: "" });
-                  setPanel({ type: "flag", item });
-                }}
+                onClick={() => openDetail(item.id)}
               >
-                Flag
+                View
               </Button>
+              {item.status === "pending" || item.status === "flagged" ? (
+                <>
+                  <Button
+                    size="sm"
+                    disabled={approveMutation.isPending}
+                    onClick={() => approveMutation.mutate(item.id)}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => {
+                      reasonForm.reset({ reason: "" });
+                      setPanel({ type: "reject", item });
+                    }}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      reasonForm.reset({ reason: "" });
+                      setPanel({ type: "flag", item });
+                    }}
+                  >
+                    Flag
+                  </Button>
+                </>
+              ) : null}
             </div>
           );
         },
       },
     ],
-    [approveMutation, reasonForm],
+    [approveMutation, openDetail, reasonForm],
   );
 
   const table = useReactTable({
@@ -258,6 +274,138 @@ export function VerificationsTable() {
           </table>
         )}
       </TableShell>
+
+      {detailId ? (
+        <Modal title="Verification case" onClose={clearDetail} wide>
+          {detailQuery.isLoading ? (
+            <EmptyState title="Loading case…" />
+          ) : detailQuery.isError ? (
+            <EmptyState
+              title="Couldn’t load verification"
+              description={
+                detailQuery.error instanceof ApiRequestError
+                  ? detailQuery.error.message
+                  : undefined
+              }
+            />
+          ) : detailQuery.data ? (
+            <div className="space-y-4 text-sm">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs text-(--ink-muted)">User</p>
+                  <p className="font-medium">{detailQuery.data.userName}</p>
+                  <p className="text-(--ink-muted)">
+                    {detailQuery.data.userEmail}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-(--ink-muted)">Status</p>
+                  <Badge tone={statusTone(detailQuery.data.status)}>
+                    {detailQuery.data.status}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-xs text-(--ink-muted)">Document type</p>
+                  <p className="font-medium">{detailQuery.data.documentType}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-(--ink-muted)">Submitted</p>
+                  <p className="font-medium">
+                    {formatDate(detailQuery.data.submittedAt)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-(--ink-muted)">Reviewed</p>
+                  <p className="font-medium">
+                    {formatDate(detailQuery.data.reviewedAt)}
+                    {detailQuery.data.reviewedByName
+                      ? ` · ${detailQuery.data.reviewedByName}`
+                      : ""}
+                  </p>
+                </div>
+              </div>
+              {detailQuery.data.documentUrl ? (
+                <div>
+                  <p className="mb-1 text-xs text-(--ink-muted)">Document</p>
+                  <a
+                    href={detailQuery.data.documentUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-(--brand) hover:underline"
+                  >
+                    Open document
+                  </a>
+                </div>
+              ) : null}
+              {detailQuery.data.notes ? (
+                <div>
+                  <p className="mb-1 text-xs text-(--ink-muted)">Notes</p>
+                  <p>{detailQuery.data.notes}</p>
+                </div>
+              ) : null}
+              {detailQuery.data.rejectionReason ? (
+                <div>
+                  <p className="mb-1 text-xs text-(--ink-muted)">
+                    Rejection reason
+                  </p>
+                  <p>{detailQuery.data.rejectionReason}</p>
+                </div>
+              ) : null}
+              {(detailQuery.data.status === "pending" ||
+                detailQuery.data.status === "flagged") && (
+                <div className="flex flex-wrap gap-2 border-t border-(--border) pt-4">
+                  <Button
+                    size="sm"
+                    disabled={approveMutation.isPending}
+                    onClick={() =>
+                      approveMutation.mutate(detailQuery.data!.id)
+                    }
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => {
+                      reasonForm.reset({ reason: "" });
+                      setPanel({
+                        type: "reject",
+                        item: detailQuery.data!,
+                      });
+                    }}
+                  >
+                    Reject
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      reasonForm.reset({ reason: "" });
+                      setPanel({
+                        type: "flag",
+                        item: detailQuery.data!,
+                      });
+                    }}
+                  >
+                    Flag
+                  </Button>
+                </div>
+              )}
+              <div className="border-t border-(--border) pt-4">
+                <Button
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                  onClick={clearDetail}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <EmptyState title="Not found" />
+          )}
+        </Modal>
+      ) : null}
 
       {panel ? (
         <Modal

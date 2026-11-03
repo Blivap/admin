@@ -12,6 +12,15 @@ const nextConfig: NextConfig = {
         source: "/admin/:path*",
         destination: `${apiUrl}/admin/:path*`,
       },
+      // Page route `/hospitals` owns that path — proxy the Nest list via /api/hospitals.
+      {
+        source: "/api/hospitals",
+        destination: `${apiUrl}/hospitals`,
+      },
+      {
+        source: "/api/hospitals/:path*",
+        destination: `${apiUrl}/hospitals/:path*`,
+      },
     ];
   },
 };

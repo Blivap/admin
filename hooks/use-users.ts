@@ -10,15 +10,17 @@ import { useSnackbar } from "@/components/providers/snackbar-provider";
 import {
   forceVerifyUser,
   getUser,
+  grantDonorRetry,
   listUsers,
   mergeUsers,
   reactivateUser,
   resetUserPassword,
   suspendUser,
+  updateUser,
 } from "@/lib/api/users";
 import { errorMessage } from "@/lib/error-message";
 import { queryKeys } from "@/lib/query-keys";
-import type { UsersListParams } from "@/types";
+import type { ForceVerifyUserPayload, UsersListParams } from "@/types";
 
 import { toPositiveInt, useUrlParams } from "./use-url-params";
 
@@ -27,12 +29,20 @@ export const suspendSchema = z.object({
 });
 
 export const mergeSchema = z.object({
-  targetUserId: z.string().min(1, "Target user ID is required"),
+  targetId: z.string().min(1, "Target user ID is required"),
   reason: z.string().min(5, "Provide a merge reason"),
+});
+
+export const updateUserSchema = z.object({
+  firstname: z.string().min(1, "First name is required"),
+  lastname: z.string().min(1, "Last name is required"),
+  phonenumber: z.string().optional(),
+  dateOfBirth: z.string().optional(),
 });
 
 export type SuspendFormValues = z.infer<typeof suspendSchema>;
 export type MergeFormValues = z.infer<typeof mergeSchema>;
+export type UpdateUserFormValues = z.infer<typeof updateUserSchema>;
 
 const urlDefaults = {
   page: "1",
@@ -99,11 +109,40 @@ export function useUsers({
     queryFn: () => listUsers(params),
   });
 
+  const listItem = listQuery.data?.data.find((u) => u.id === detailUserId);
+
   const detailQuery = useQuery({
     queryKey: queryKeys.users.detail(detailUserId),
     queryFn: () => getUser(detailUserId),
     enabled: Boolean(detailUserId),
+    // Seed from the table row so blood type / location show immediately.
+    // Detail response nests those under `donor` and used to drop them.
+    placeholderData: listItem
+      ? {
+          ...listItem,
+          donationHistory: [],
+          pushTokens: [],
+          donationCount: 0,
+          requestCount: 0,
+          eligibilityStatus: null,
+        }
+      : undefined,
   });
+
+  /** Prefer detail fields; fall back to list row when detail omits donor data. */
+  const detailUser = detailQuery.data
+    ? {
+        ...detailQuery.data,
+        bloodType: detailQuery.data.bloodType ?? listItem?.bloodType ?? null,
+        city: detailQuery.data.city ?? listItem?.city ?? null,
+        state: detailQuery.data.state ?? listItem?.state ?? null,
+        region: detailQuery.data.region ?? listItem?.region ?? null,
+        emailVerified:
+          detailQuery.data.emailVerified || Boolean(listItem?.emailVerified),
+        ninVerified:
+          detailQuery.data.ninVerified || Boolean(listItem?.ninVerified),
+      }
+    : undefined;
 
   const suspendForm = useForm<SuspendFormValues>({
     resolver: zodResolver(suspendSchema),
@@ -111,7 +150,16 @@ export function useUsers({
   });
   const mergeForm = useForm<MergeFormValues>({
     resolver: zodResolver(mergeSchema),
-    defaultValues: { targetUserId: "", reason: "" },
+    defaultValues: { targetId: "", reason: "" },
+  });
+  const updateForm = useForm<UpdateUserFormValues>({
+    resolver: zodResolver(updateUserSchema),
+    defaultValues: {
+      firstname: "",
+      lastname: "",
+      phonenumber: "",
+      dateOfBirth: "",
+    },
   });
 
   const invalidate = async () => {
@@ -152,14 +200,48 @@ export function useUsers({
   });
 
   const verifyMutation = useMutation({
-    mutationFn: forceVerifyUser,
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: ForceVerifyUserPayload;
+    }) => forceVerifyUser(id, payload),
     onSuccess: async () => {
       await invalidate();
-      toast({ title: "User verified", tone: "success" });
+      toast({ title: "Verification updated", tone: "success" });
     },
     onError: (error) => {
       toast({
         title: "Couldn’t verify user",
+        description: errorMessage(error),
+        tone: "error",
+      });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({
+      id,
+      values,
+    }: {
+      id: string;
+      values: UpdateUserFormValues;
+    }) =>
+      updateUser(id, {
+        firstname: values.firstname.trim(),
+        lastname: values.lastname.trim(),
+        phonenumber: values.phonenumber?.trim() || undefined,
+        dateOfBirth: values.dateOfBirth?.trim() || undefined,
+      }),
+    onSuccess: async () => {
+      onActionSuccess?.();
+      await invalidate();
+      toast({ title: "Profile updated", tone: "success" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Couldn’t update profile",
         description: errorMessage(error),
         tone: "error",
       });
@@ -178,6 +260,25 @@ export function useUsers({
     onError: (error) => {
       toast({
         title: "Couldn’t reset password",
+        description: errorMessage(error),
+        tone: "error",
+      });
+    },
+  });
+
+  const grantRetryMutation = useMutation({
+    mutationFn: grantDonorRetry,
+    onSuccess: async () => {
+      await invalidate();
+      toast({
+        title: "Donor activation retry granted",
+        description: "The donor can try the questionnaire again.",
+        tone: "success",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Couldn’t grant activation attempt",
         description: errorMessage(error),
         tone: "error",
       });
@@ -227,12 +328,16 @@ export function useUsers({
     clearUser,
     listQuery,
     detailQuery,
+    detailUser,
     suspendForm,
     mergeForm,
+    updateForm,
     suspendMutation,
     reactivateMutation,
     verifyMutation,
+    updateMutation,
     resetPasswordMutation,
+    grantRetryMutation,
     mergeMutation,
   };
 }

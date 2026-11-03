@@ -189,10 +189,12 @@ export interface AdminUserListItem {
   city?: string | null;
   state?: string | null;
   region?: string | null;
+  emailVerified: boolean;
   ninVerified: boolean;
   createdAt: string;
   lastActiveAt?: string | null;
   profileImage?: string | null;
+  dateOfBirth?: string | null;
   roles?: AuthRole[];
   isSuspended?: boolean;
   suspendedAt?: string | null;
@@ -217,13 +219,19 @@ export interface UsersListParams extends ListParams {
   location?: string;
 }
 
+/** Matches Nest `UpdateAdminUserDto` — profile fields only. */
 export interface UpdateUserPayload {
   firstname?: string;
   lastname?: string;
   phonenumber?: string;
-  bloodType?: BloodType | null;
-  city?: string | null;
-  state?: string | null;
+  profileImage?: string | null;
+  dateOfBirth?: string | null;
+}
+
+/** Force-verify email and/or NIN. Empty body defaults to NIN on the API. */
+export interface ForceVerifyUserPayload {
+  emailVerified?: boolean;
+  nationalIdentificationNumberVerified?: boolean;
 }
 
 export interface SuspendUserPayload {
@@ -231,12 +239,25 @@ export interface SuspendUserPayload {
 }
 
 export interface MergeUsersPayload {
-  targetUserId: string;
+  targetId: string;
   reason: string;
+}
+
+export interface GrantDonorRetryResult {
+  userId: string;
+  eligibilityStatus: string;
 }
 
 /* ── Blood Requests ───────────────────────────────────────────────── */
 
+/**
+ * Admin UI status is *derived* from stored domain status + linked bookings.
+ * Stored: open → matched → closed | cancelled | expired
+ * UI:     active | matched | fulfilled | expired | cancelled
+ *
+ * Examples: open + pending booking → matched; open + ~7d no live booking →
+ * expired (soft, no DB write); completed booking → fulfilled without auto-closing.
+ */
 export interface AdminBloodRequestListItem {
   id: string;
   requesterId: string;
@@ -244,13 +265,14 @@ export interface AdminBloodRequestListItem {
   neededBloodType: BloodType;
   status: BloodRequestStatus;
   urgency: UrgencyLevel;
+  /** State (backend aliases region ← state). */
   region?: string | null;
   city?: string | null;
   state?: string | null;
   matchedDonorId?: string | null;
   matchedDonorName?: string | null;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string | null;
 }
 
 export interface AdminBloodRequestDetail extends AdminBloodRequestListItem {
@@ -262,13 +284,29 @@ export interface AdminBloodRequestDetail extends AdminBloodRequestListItem {
   currentRadiusKm?: number | null;
 }
 
+/**
+ * Booking linked to a request via bloodRequestId (not raw geo candidates).
+ * `channel` is always `"booking"` from the admin matches endpoint.
+ */
+export type MatchBookingResponse =
+  | "pending"
+  | "accepted"
+  | "declined"
+  | "cancelled"
+  | "expired"
+  | "completed"
+  | "no_show"
+  | "awaiting_welfare_funding"
+  | "voided";
+
 export interface MatchLogEntry {
   id: string;
   requestId: string;
   donorId: string;
   donorName: string;
+  /** Booking createdAt. */
   notifiedAt: string;
-  response?: "accepted" | "declined" | "no_response" | null;
+  response?: MatchBookingResponse | string | null;
   respondedAt?: string | null;
   responseTimeSeconds?: number | null;
   distanceKm?: number | null;
@@ -282,16 +320,22 @@ export interface RequestsListParams extends ListParams {
   region?: string;
 }
 
+/** Creates a booking and sets stored matched + matchedDonorId. */
 export interface AssignDonorPayload {
   donorId: string;
   note?: string;
 }
 
+/** Sets critical urgency, widens radius, re-runs discovery (no booking). */
 export interface EscalateRequestPayload {
   reason?: string;
   radiusKm?: number;
 }
 
+/**
+ * Admin write of UI status → stored:
+ * active→open, matched→matched, fulfilled→closed, expired→expired, cancelled→cancelled.
+ */
 export interface UpdateRequestStatusPayload {
   status: BloodRequestStatus;
   reason?: string;
@@ -362,6 +406,19 @@ export interface DirectMessagePayload {
   title: string;
   body: string;
   deepLink?: string;
+}
+
+/** Queues a platform-wide system-update email campaign. */
+export interface SystemUpdateBroadcastPayload {
+  subject: string;
+  title: string;
+  body: string;
+  actionUrl?: string;
+  actionLabel?: string;
+}
+
+export interface SystemUpdateBroadcastResult {
+  queued: number;
 }
 
 /* ── Verifications ────────────────────────────────────────────────── */
@@ -553,6 +610,21 @@ export interface AdminHospitalListItem {
 export interface HospitalsListParams extends ListParams {
   query?: string;
   authorizedBloodCollection?: boolean | "";
+}
+
+/** GeoJSON Point — coordinates are [longitude, latitude]. */
+export interface GeoPointPayload {
+  type: "Point";
+  coordinates: [number, number];
+}
+
+export interface CreateHospitalPayload {
+  name: string;
+  addressLine?: string;
+  city?: string;
+  state?: string;
+  location: GeoPointPayload;
+  authorizedBloodCollection?: boolean;
 }
 
 export interface UpdateBloodCollectionAuthorizationPayload {
