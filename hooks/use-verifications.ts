@@ -9,6 +9,7 @@ import { z } from "zod";
 import {
   approveVerification,
   flagVerification,
+  getVerification,
   listVerifications,
   rejectVerification,
 } from "@/lib/api/verifications";
@@ -29,6 +30,7 @@ const urlDefaults = {
   pageSize: "20",
   query: "",
   status: "pending",
+  verificationId: "",
 };
 
 function statusFromUrl(raw: string): VerificationsListParams["status"] {
@@ -56,6 +58,7 @@ export function useVerifications({
     status: statusFromUrl(url.status),
   };
 
+  const detailId = url.verificationId;
   const [draftQuery, setDraftQuery] = useState(url.query);
 
   useEffect(() => {
@@ -73,12 +76,22 @@ export function useVerifications({
       pageSize: String(next.pageSize ?? 20),
       query: next.query ?? "",
       status: statusToUrl(next.status),
+      verificationId: url.verificationId,
     });
   };
+
+  const openDetail = (id: string) => setUrl({ verificationId: id });
+  const clearDetail = () => setUrl({ verificationId: "" });
 
   const listQuery = useQuery({
     queryKey: queryKeys.verifications.list(params),
     queryFn: () => listVerifications(params),
+  });
+
+  const detailQuery = useQuery({
+    queryKey: queryKeys.verifications.detail(detailId),
+    queryFn: () => getVerification(detailId),
+    enabled: Boolean(detailId),
   });
 
   const reasonForm = useForm<ReasonFormValues>({
@@ -129,7 +142,11 @@ export function useVerifications({
     draftQuery,
     setDraftQuery,
     applyFilters,
+    detailId,
+    openDetail,
+    clearDetail,
     listQuery,
+    detailQuery,
     reasonForm,
     approveMutation,
     rejectMutation,

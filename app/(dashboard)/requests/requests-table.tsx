@@ -20,7 +20,11 @@ import { Select } from "@/components/ui/select";
 import { TableShell } from "@/components/ui/table-shell";
 import { Textarea } from "@/components/ui/textarea";
 import { TruncatedText } from "@/components/ui/truncated-text";
-import { useRequests } from "@/hooks/use-requests";
+import {
+  canIntervene,
+  STATUS_WRITE_OPTIONS,
+  useRequests,
+} from "@/hooks/use-requests";
 import { ApiRequestError } from "@/lib/api/client";
 import { BLOOD_TYPES } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
@@ -35,6 +39,8 @@ type Panel =
   | { type: "assign"; request: AdminBloodRequestListItem }
   | { type: "escalate"; request: AdminBloodRequestListItem }
   | { type: "rebroadcast"; request: AdminBloodRequestListItem }
+  | { type: "rematch"; request: AdminBloodRequestListItem }
+  | { type: "status"; request: AdminBloodRequestListItem }
   | null;
 
 function statusTone(status: BloodRequestStatus) {
@@ -50,6 +56,26 @@ function statusTone(status: BloodRequestStatus) {
     default:
       return "neutral" as const;
   }
+}
+
+function urgencyTone(urgency: UrgencyLevel) {
+  switch (urgency) {
+    case "critical":
+      return "danger" as const;
+    case "urgent":
+      return "warning" as const;
+    default:
+      return "neutral" as const;
+  }
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-(--ink-muted)">{label}</p>
+      <p className="font-medium text-(--ink)">{value}</p>
+    </div>
+  );
 }
 
 export function RequestsTable() {
@@ -74,6 +100,8 @@ export function RequestsTable() {
     assignForm,
     escalateForm,
     rebroadcastForm,
+    statusForm,
+    rematchForm,
     assignMutation,
     escalateMutation,
     rematchMutation,
@@ -122,9 +150,7 @@ export function RequestsTable() {
         accessorKey: "urgency",
         header: "Urgency",
         cell: ({ row }) => (
-          <Badge
-            tone={row.original.urgency === "normal" ? "neutral" : "danger"}
-          >
+          <Badge tone={urgencyTone(row.original.urgency)}>
             {row.original.urgency}
           </Badge>
         ),
@@ -135,7 +161,7 @@ export function RequestsTable() {
         cell: ({ row }) => (
           <TruncatedText
             text={
-              [row.original.city, row.original.region]
+              [row.original.city, row.original.state || row.original.region]
                 .filter(Boolean)
                 .join(", ") || "—"
             }
@@ -163,6 +189,7 @@ export function RequestsTable() {
         header: "Actions",
         cell: ({ row }) => {
           const request = row.original;
+          const open = canIntervene(request.status);
           return (
             <div className="flex flex-nowrap gap-1">
               <Button
@@ -170,9 +197,22 @@ export function RequestsTable() {
                 variant="secondary"
                 onClick={() => openRequest(request.id, "matches")}
               >
-                Matches
+                Bookings
               </Button>
-              {request.status === "active" ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  statusForm.reset({
+                    status: request.status,
+                    reason: "",
+                  });
+                  setPanel({ type: "status", request });
+                }}
+              >
+                Status
+              </Button>
+              {open ? (
                 <>
                   <Button
                     size="sm"
@@ -187,7 +227,7 @@ export function RequestsTable() {
                     size="sm"
                     variant="secondary"
                     onClick={() => {
-                      escalateForm.reset({});
+                      escalateForm.reset({ reason: "", radiusKm: undefined });
                       setPanel({ type: "escalate", request });
                     }}
                   >
@@ -196,8 +236,10 @@ export function RequestsTable() {
                   <Button
                     size="sm"
                     variant="secondary"
-                    disabled={rematchMutation.isPending}
-                    onClick={() => rematchMutation.mutate(request.id)}
+                    onClick={() => {
+                      rematchForm.reset({ note: "" });
+                      setPanel({ type: "rematch", request });
+                    }}
                   >
                     Rematch
                   </Button>
@@ -205,24 +247,15 @@ export function RequestsTable() {
                     size="sm"
                     variant="secondary"
                     onClick={() => {
-                      rebroadcastForm.reset({ mode: "same" });
+                      rebroadcastForm.reset({
+                        mode: "same",
+                        donorId: "",
+                        radiusKm: undefined,
+                      });
                       setPanel({ type: "rebroadcast", request });
                     }}
                   >
                     Rebroadcast
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    disabled={statusMutation.isPending}
-                    onClick={() =>
-                      statusMutation.mutate({
-                        id: request.id,
-                        status: "cancelled",
-                      })
-                    }
-                  >
-                    Cancel
                   </Button>
                 </>
               ) : null}
@@ -236,8 +269,8 @@ export function RequestsTable() {
       escalateForm,
       openRequest,
       rebroadcastForm,
-      rematchMutation,
-      statusMutation,
+      rematchForm,
+      statusForm,
     ],
   );
 
@@ -248,6 +281,7 @@ export function RequestsTable() {
   });
 
   const meta = listQuery.data?.meta;
+  const detail = detailQuery.data;
 
   return (
     <>
@@ -332,7 +366,7 @@ export function RequestsTable() {
                 value={draftRegion}
                 onChange={(e) => setDraftRegion(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && applyFilters()}
-                placeholder="Region"
+                placeholder="State / region"
               />
             </div>
             <Button variant="secondary" onClick={applyFilters}>
@@ -345,10 +379,11 @@ export function RequestsTable() {
           </>
         }
         footer={
-          meta ? (
+          !listQuery.isLoading && !listQuery.isError ? (
             <Pagination
-              page={meta.page}
-              totalPages={meta.totalPages}
+              page={meta?.page ?? params.page ?? 1}
+              totalPages={meta?.totalPages ?? 1}
+              total={meta?.total}
               onPageChange={(page) => setParams((prev) => ({ ...prev, page }))}
             />
           ) : null
@@ -401,31 +436,75 @@ export function RequestsTable() {
         <Modal title="Request detail" onClose={clearRequest} wide>
           {detailQuery.isLoading ? (
             <EmptyState title="Loading…" />
-          ) : detailQuery.data ? (
-            <div className="space-y-2 text-sm">
-              <p>
-                <span className="text-(--ink-muted)">Requester:</span>{" "}
-                {detailQuery.data.requesterName}
-              </p>
-              <p>
-                <span className="text-(--ink-muted)">Blood:</span>{" "}
-                {detailQuery.data.neededBloodType}
-              </p>
-              <p>
-                <span className="text-(--ink-muted)">Status:</span>{" "}
-                {detailQuery.data.status} · {detailQuery.data.urgency}
-              </p>
-              <p>
-                <span className="text-(--ink-muted)">Radius:</span>{" "}
-                {detailQuery.data.currentRadiusKm != null
-                  ? `${detailQuery.data.currentRadiusKm} km`
-                  : "—"}
-              </p>
-              <p>
-                <span className="text-(--ink-muted)">Notes:</span>{" "}
-                {detailQuery.data.notes || "—"}
-              </p>
-              <div className="border-t border-(--border) pt-4">
+          ) : detail ? (
+            <div className="space-y-5 text-sm">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Requester" value={detail.requesterName} />
+                <Field label="Email" value={detail.requesterEmail || "—"} />
+                <Field label="Phone" value={detail.requesterPhone || "—"} />
+                <Field label="Blood" value={detail.neededBloodType} />
+                <Field label="Status (derived)" value={detail.status} />
+                <Field label="Urgency" value={detail.urgency} />
+                <Field
+                  label="Location"
+                  value={
+                    [detail.city, detail.state || detail.region]
+                      .filter(Boolean)
+                      .join(", ") || "—"
+                  }
+                />
+                <Field
+                  label="Matched donor"
+                  value={
+                    detail.matchedDonorName
+                      ? `${detail.matchedDonorName}${
+                          detail.matchedDonorId
+                            ? ` (${detail.matchedDonorId.slice(0, 8)}…)`
+                            : ""
+                        }`
+                      : "—"
+                  }
+                />
+                <Field
+                  label="Search radius"
+                  value={
+                    detail.currentRadiusKm != null
+                      ? `${detail.currentRadiusKm} km`
+                      : "—"
+                  }
+                />
+                <Field label="Created" value={formatDate(detail.createdAt)} />
+                <Field
+                  label="Updated"
+                  value={formatDate(detail.updatedAt)}
+                />
+                <Field
+                  label="Escalated"
+                  value={
+                    detail.escalatedAt
+                      ? `${formatDate(detail.escalatedAt)}${
+                          detail.escalatedReason
+                            ? ` · ${detail.escalatedReason}`
+                            : ""
+                        }`
+                      : "—"
+                  }
+                />
+              </div>
+              <div>
+                <p className="text-xs text-(--ink-muted)">Notes</p>
+                <p className="mt-1 whitespace-pre-wrap">
+                  {detail.notes || "—"}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 border-t border-(--border) pt-4">
+                <Button
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                  onClick={() => openRequest(detail.id, "matches")}
+                >
+                  View bookings
+                </Button>
                 <Button
                   variant="secondary"
                   className="w-full sm:w-auto"
@@ -442,12 +521,17 @@ export function RequestsTable() {
       ) : null}
 
       {showMatches ? (
-        <Modal title="Matching log" onClose={clearRequest} wide>
+        <Modal title="Linked bookings" onClose={clearRequest} wide>
+          <p className="mb-3 text-sm text-(--ink-muted)">
+            Bookings tied to this need via bloodRequestId — not raw geo match
+            candidates. Escalate / rematch / rebroadcast only appear here after
+            someone books.
+          </p>
           {matchesQuery.isLoading ? (
-            <EmptyState title="Loading matches…" />
+            <EmptyState title="Loading bookings…" />
           ) : matchesQuery.isError ? (
             <EmptyState
-              title="Couldn’t load matches"
+              title="Couldn’t load bookings"
               description={
                 matchesQuery.error instanceof ApiRequestError
                   ? matchesQuery.error.message
@@ -455,25 +539,35 @@ export function RequestsTable() {
               }
             />
           ) : (matchesQuery.data?.length ?? 0) === 0 ? (
-            <EmptyState title="No match events yet" />
+            <EmptyState
+              title="No bookings yet"
+              description="Assign a donor to create a booking, or wait for the requester to book from matching results."
+            />
           ) : (
             <div className="max-h-96 overflow-x-auto overflow-y-auto">
               <table>
                 <thead>
                   <tr>
                     <th>Donor</th>
-                    <th>Notified</th>
-                    <th>Response</th>
-                    <th>Time</th>
+                    <th>Booked</th>
+                    <th>Booking status</th>
+                    <th>Response time</th>
                     <th>Distance</th>
                   </tr>
                 </thead>
                 <tbody>
                   {matchesQuery.data?.map((m) => (
                     <tr key={m.id}>
-                      <td>{m.donorName}</td>
+                      <td>
+                        <div>
+                          <p className="font-medium">{m.donorName}</p>
+                          <p className="text-xs text-(--ink-muted)">
+                            {m.donorId.slice(0, 8)}…
+                          </p>
+                        </div>
+                      </td>
                       <td>{formatDate(m.notifiedAt)}</td>
-                      <td>{m.response ?? "—"}</td>
+                      <td>{m.response?.replace(/_/g, " ") ?? "—"}</td>
                       <td>
                         {m.responseTimeSeconds != null
                           ? `${m.responseTimeSeconds}s`
@@ -504,6 +598,9 @@ export function RequestsTable() {
 
       {panel?.type === "assign" ? (
         <Modal title="Assign donor" onClose={closeActionPanel}>
+          <p className="mb-3 text-sm text-(--ink-muted)">
+            Creates a booking for this need and sets the request to matched.
+          </p>
           <form
             className="space-y-4"
             onSubmit={assignForm.handleSubmit((values) =>
@@ -511,7 +608,7 @@ export function RequestsTable() {
             )}
           >
             <div>
-              <Label htmlFor="donor-id">Donor ID</Label>
+              <Label htmlFor="donor-id">Donor user ID</Label>
               <Input id="donor-id" {...assignForm.register("donorId")} />
               {assignForm.formState.errors.donorId ? (
                 <p className="mt-1 text-xs text-(--danger)">
@@ -520,7 +617,7 @@ export function RequestsTable() {
               ) : null}
             </div>
             <div>
-              <Label htmlFor="assign-note">Note</Label>
+              <Label htmlFor="assign-note">Note (optional)</Label>
               <Textarea id="assign-note" {...assignForm.register("note")} />
             </div>
             {assignMutation.error instanceof ApiRequestError ? (
@@ -531,14 +628,18 @@ export function RequestsTable() {
             <ModalActions
               onCancel={closeActionPanel}
               pending={assignMutation.isPending}
-              label="Assign"
+              label="Assign & book"
             />
           </form>
         </Modal>
       ) : null}
 
       {panel?.type === "escalate" ? (
-        <Modal title="Escalate radius" onClose={closeActionPanel}>
+        <Modal title="Escalate" onClose={closeActionPanel}>
+          <p className="mb-3 text-sm text-(--ink-muted)">
+            Sets urgency to critical, widens search radius, and re-runs donor
+            discovery. Does not create a booking.
+          </p>
           <form
             className="space-y-4"
             onSubmit={escalateForm.handleSubmit((values) =>
@@ -571,8 +672,41 @@ export function RequestsTable() {
         </Modal>
       ) : null}
 
+      {panel?.type === "rematch" ? (
+        <Modal title="Rematch" onClose={closeActionPanel}>
+          <p className="mb-3 text-sm text-(--ink-muted)">
+            Re-runs discovery at the current radius. Does not create a booking.
+          </p>
+          <form
+            className="space-y-4"
+            onSubmit={rematchForm.handleSubmit((values) =>
+              rematchMutation.mutate({ id: panel.request.id, values }),
+            )}
+          >
+            <div>
+              <Label htmlFor="rematch-note">Note (optional)</Label>
+              <Textarea id="rematch-note" {...rematchForm.register("note")} />
+            </div>
+            {rematchMutation.error instanceof ApiRequestError ? (
+              <p className="text-sm text-(--danger)">
+                {rematchMutation.error.message}
+              </p>
+            ) : null}
+            <ModalActions
+              onCancel={closeActionPanel}
+              pending={rematchMutation.isPending}
+              label="Rematch"
+            />
+          </form>
+        </Modal>
+      ) : null}
+
       {panel?.type === "rebroadcast" ? (
-        <Modal title="Rebroadcast / override" onClose={closeActionPanel}>
+        <Modal title="Rebroadcast" onClose={closeActionPanel}>
+          <p className="mb-3 text-sm text-(--ink-muted)">
+            Notify again at the same radius, a wider radius, or force a specific
+            donor. Does not create a booking unless someone books afterward.
+          </p>
           <form
             className="space-y-4"
             onSubmit={rebroadcastForm.handleSubmit((values) =>
@@ -591,23 +725,35 @@ export function RequestsTable() {
                   )
                 }
               >
-                <option value="same">Re-broadcast same radius</option>
+                <option value="same">Same radius</option>
                 <option value="wider_radius">Wider radius</option>
-                <option value="force_donor">Force-notify specific donor</option>
+                <option value="force_donor">Force specific donor</option>
               </Select>
             </div>
-            <div>
-              <Label htmlFor="rb-radius">Radius (km)</Label>
-              <Input
-                id="rb-radius"
-                type="number"
-                {...rebroadcastForm.register("radiusKm")}
-              />
-            </div>
-            <div>
-              <Label htmlFor="rb-donor">Donor ID (force mode)</Label>
-              <Input id="rb-donor" {...rebroadcastForm.register("donorId")} />
-            </div>
+            {rebroadcastForm.watch("mode") === "wider_radius" ? (
+              <div>
+                <Label htmlFor="rb-radius">Radius (km)</Label>
+                <Input
+                  id="rb-radius"
+                  type="number"
+                  {...rebroadcastForm.register("radiusKm")}
+                />
+              </div>
+            ) : null}
+            {rebroadcastForm.watch("mode") === "force_donor" ? (
+              <div>
+                <Label htmlFor="rb-donor">Donor user ID</Label>
+                <Input
+                  id="rb-donor"
+                  {...rebroadcastForm.register("donorId")}
+                />
+                {rebroadcastForm.formState.errors.donorId ? (
+                  <p className="mt-1 text-xs text-(--danger)">
+                    {rebroadcastForm.formState.errors.donorId.message}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {rebroadcastMutation.error instanceof ApiRequestError ? (
               <p className="text-sm text-(--danger)">
                 {rebroadcastMutation.error.message}
@@ -616,7 +762,71 @@ export function RequestsTable() {
             <ModalActions
               onCancel={closeActionPanel}
               pending={rebroadcastMutation.isPending}
-              label="Send"
+              label="Rebroadcast"
+            />
+          </form>
+        </Modal>
+      ) : null}
+
+      {panel?.type === "status" ? (
+        <Modal title="Update status" onClose={closeActionPanel}>
+          <p className="mb-3 text-sm text-(--ink-muted)">
+            Force the stored domain status to catch up. List status is often
+            derived from bookings — use this when ops need to reopen, fulfill,
+            expire, or cancel.
+          </p>
+          <form
+            className="space-y-4"
+            onSubmit={statusForm.handleSubmit((values) =>
+              statusMutation.mutate({
+                id: panel.request.id,
+                status: values.status,
+                reason: values.reason,
+              }),
+            )}
+          >
+            <div>
+              <Label htmlFor="req-status-change">Write status</Label>
+              <Select
+                id="req-status-change"
+                value={statusForm.watch("status")}
+                onChange={(e) =>
+                  statusForm.setValue(
+                    "status",
+                    e.target.value as BloodRequestStatus,
+                  )
+                }
+              >
+                {STATUS_WRITE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </Select>
+              <p className="mt-1 text-xs text-(--ink-muted)">
+                {
+                  STATUS_WRITE_OPTIONS.find(
+                    (o) => o.value === statusForm.watch("status"),
+                  )?.hint
+                }
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="status-reason">Reason (optional)</Label>
+              <Textarea
+                id="status-reason"
+                {...statusForm.register("reason")}
+              />
+            </div>
+            {statusMutation.error instanceof ApiRequestError ? (
+              <p className="text-sm text-(--danger)">
+                {statusMutation.error.message}
+              </p>
+            ) : null}
+            <ModalActions
+              onCancel={closeActionPanel}
+              pending={statusMutation.isPending}
+              label="Save status"
             />
           </form>
         </Modal>

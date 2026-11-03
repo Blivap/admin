@@ -56,6 +56,13 @@ export async function logout() {
   }
 }
 
-export function getMe() {
-  return apiClient<AdminUser>("/admin/auth/me");
+/** Session identity from GET /admin/auth/me (Nest `{ message, data }` envelope). */
+export async function getMe(): Promise<AdminUser> {
+  const raw = await apiClient<{ message?: string; data: AdminUser } | AdminUser>(
+    "/admin/auth/me",
+  );
+  if (raw && typeof raw === "object" && "data" in raw && raw.data) {
+    return raw.data;
+  }
+  return raw as AdminUser;
 }

@@ -8,6 +8,7 @@ import { z } from "zod";
 import {
   getDeliveryStats,
   listNotificationHistory,
+  queueSystemUpdate,
   sendBroadcast,
   sendDirectMessage,
 } from "@/lib/api/notifications";
@@ -36,8 +37,20 @@ export const dmSchema = z.object({
   deepLink: z.string().optional(),
 });
 
+export const systemUpdateSchema = z.object({
+  subject: z.string().min(3, "Email subject is required").max(200),
+  title: z.string().min(3, "Title is required").max(200),
+  body: z.string().min(10, "Body must be at least 10 characters").max(5000),
+  actionUrl: z.union([
+    z.literal(""),
+    z.string().url("Enter a full URL including https://"),
+  ]),
+  actionLabel: z.string().max(80).optional(),
+});
+
 export type BroadcastFormValues = z.infer<typeof broadcastSchema>;
 export type DmFormValues = z.infer<typeof dmSchema>;
+export type SystemUpdateFormValues = z.infer<typeof systemUpdateSchema>;
 
 const urlDefaults = {
   page: "1",
@@ -113,6 +126,17 @@ export function useNotifications({
     defaultValues: { userId: "", title: "", body: "", deepLink: "" },
   });
 
+  const systemUpdateForm = useForm<SystemUpdateFormValues>({
+    resolver: zodResolver(systemUpdateSchema),
+    defaultValues: {
+      subject: "",
+      title: "",
+      body: "",
+      actionUrl: "",
+      actionLabel: "",
+    },
+  });
+
   const invalidate = async () => {
     await queryClient.invalidateQueries({
       queryKey: queryKeys.notifications.all,
@@ -159,6 +183,22 @@ export function useNotifications({
     },
   });
 
+  const systemUpdateMutation = useMutation({
+    mutationFn: (values: SystemUpdateFormValues) =>
+      queueSystemUpdate({
+        subject: values.subject.trim(),
+        title: values.title.trim(),
+        body: values.body.trim(),
+        actionUrl: values.actionUrl?.trim() || undefined,
+        actionLabel: values.actionLabel?.trim() || undefined,
+      }),
+    onSuccess: async () => {
+      systemUpdateForm.reset();
+      onActionSuccess?.();
+      await invalidate();
+    },
+  });
+
   return {
     params,
     setParams,
@@ -169,7 +209,9 @@ export function useNotifications({
     statsQuery,
     broadcastForm,
     dmForm,
+    systemUpdateForm,
     broadcastMutation,
     dmMutation,
+    systemUpdateMutation,
   };
 }

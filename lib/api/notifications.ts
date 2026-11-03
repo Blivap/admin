@@ -7,6 +7,8 @@ import type {
   NotificationDeliveryStats,
   NotificationsListParams,
   PaginatedResponse,
+  SystemUpdateBroadcastPayload,
+  SystemUpdateBroadcastResult,
 } from "@/types";
 
 export function listNotificationHistory(params: NotificationsListParams = {}) {
@@ -33,4 +35,19 @@ export function sendDirectMessage(userId: string, payload: DirectMessagePayload)
     `/admin/notifications/user/${userId}`,
     { method: "POST", body: payload },
   );
+}
+
+/** Queue a system-update email to every user with an address. */
+export async function queueSystemUpdate(payload: SystemUpdateBroadcastPayload) {
+  const raw = await apiClient<
+    | { message?: string; data: SystemUpdateBroadcastResult }
+    | SystemUpdateBroadcastResult
+  >("/admin/broadcasts/system-update", {
+    method: "POST",
+    body: payload,
+  });
+  if (raw && typeof raw === "object" && "data" in raw && raw.data) {
+    return raw.data;
+  }
+  return raw as SystemUpdateBroadcastResult;
 }

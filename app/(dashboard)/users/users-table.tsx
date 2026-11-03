@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Modal } from "@/components/ui/modal";
+import { Modal, ModalActions } from "@/components/ui/modal";
 import { Pagination } from "@/components/ui/pagination";
 import { QueryError } from "@/components/ui/query-error";
 import { ReloadButton } from "@/components/ui/reload-button";
@@ -31,6 +31,7 @@ import { BLOOD_TYPES } from "@/lib/constants";
 import { formatDate, fullName } from "@/lib/utils";
 import { Users } from "lucide-react";
 import type {
+  AdminUserDetail,
   AdminUserListItem,
   BloodType,
   PlatformUserRole,
@@ -40,6 +41,7 @@ import type {
 type Panel =
   | { type: "suspend"; user: AdminUserListItem }
   | { type: "merge"; user: AdminUserListItem }
+  | { type: "edit"; user: AdminUserDetail }
   | null;
 
 function statusTone(status: UserStatus) {
@@ -51,6 +53,15 @@ function statusTone(status: UserStatus) {
     default:
       return "neutral" as const;
   }
+}
+
+function canGrantDonorRetry(user: AdminUserDetail) {
+  const status = (user.eligibilityStatus ?? "").toLowerCase();
+  return (
+    status === "ineligible" ||
+    status === "pending_review" ||
+    status === "pendingreview"
+  );
 }
 
 export function UsersTable() {
@@ -70,12 +81,16 @@ export function UsersTable() {
     clearUser,
     listQuery,
     detailQuery,
+    detailUser,
     suspendForm,
     mergeForm,
+    updateForm,
     suspendMutation,
     reactivateMutation,
     verifyMutation,
+    updateMutation,
     resetPasswordMutation,
+    grantRetryMutation,
     mergeMutation,
   } = useUsers({ onActionSuccess: closeActionPanel });
 
@@ -140,12 +155,17 @@ export function UsersTable() {
         ),
       },
       {
-        id: "nin",
+        id: "verified",
         header: "Verified",
         cell: ({ row }) => (
-          <Badge tone={row.original.ninVerified ? "success" : "warning"}>
-            {row.original.ninVerified ? "Yes" : "No"}
-          </Badge>
+          <div className="flex flex-col gap-1">
+            <Badge tone={row.original.emailVerified ? "success" : "warning"}>
+              Email {row.original.emailVerified ? "yes" : "no"}
+            </Badge>
+            <Badge tone={row.original.ninVerified ? "success" : "warning"}>
+              NIN {row.original.ninVerified ? "yes" : "no"}
+            </Badge>
+          </div>
         ),
       },
       {
@@ -361,176 +381,295 @@ export function UsersTable() {
               error={detailQuery.error}
               onRetry={() => detailQuery.refetch()}
             />
-          ) : detailQuery.data ? (
+          ) : detailUser ? (
             <div className="space-y-5 text-sm">
               {(() => {
-                const user = detailQuery.data;
+                const user = detailUser;
                 const donationHistory = user.donationHistory ?? [];
                 const pushTokens = user.pushTokens ?? [];
                 return (
                   <>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field
-                  label="Name"
-                  value={fullName(user.firstname, user.lastname)}
-                />
-                <Field label="Email" value={user.email} />
-                <Field label="Phone" value={user.phonenumber || "—"} />
-                <Field label="Blood type" value={user.bloodType || "—"} />
-                <Field
-                  label="Role"
-                  value={user.role && user.role !== "none" ? user.role : "—"}
-                />
-                <Field label="Status" value={user.status} />
-                <Field
-                  label="Location"
-                  value={
-                    [user.city, user.state, user.region]
-                      .filter(Boolean)
-                      .join(", ") || "—"
-                  }
-                />
-                <Field
-                  label="Verification"
-                  value={
-                    user.ninVerified
-                      ? "NIN verified"
-                      : user.verificationStatus || "Unverified"
-                  }
-                />
-              </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field
+                        label="Name"
+                        value={fullName(user.firstname, user.lastname)}
+                      />
+                      <Field label="Email" value={user.email} />
+                      <Field label="Phone" value={user.phonenumber || "—"} />
+                      <Field label="Blood type" value={user.bloodType || "—"} />
+                      <Field
+                        label="Role"
+                        value={
+                          user.role && user.role !== "none" ? user.role : "—"
+                        }
+                      />
+                      <Field label="Status" value={user.status} />
+                      <Field
+                        label="Location"
+                        value={
+                          [user.city, user.state, user.region]
+                            .filter(Boolean)
+                            .join(", ") || "—"
+                        }
+                      />
+                      <Field
+                        label="Date of birth"
+                        value={user.dateOfBirth || "—"}
+                      />
+                      <Field
+                        label="Email verified"
+                        value={user.emailVerified ? "Yes" : "No"}
+                      />
+                      <Field
+                        label="NIN verified"
+                        value={user.ninVerified ? "Yes" : "No"}
+                      />
+                      <Field
+                        label="Eligibility"
+                        value={user.eligibilityStatus || "—"}
+                      />
+                    </div>
 
-              <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-(--ink-muted)">
-                  Donation history
-                </h3>
-                {donationHistory.length === 0 ? (
-                  <p className="text-(--ink-muted)">No donations yet.</p>
-                ) : (
-                  <div className="overflow-x-auto rounded border border-(--border)">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Date</th>
-                          <th>Blood</th>
-                          <th>Facility</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {donationHistory.map((d) => (
-                          <tr key={d.id}>
-                            <td>{formatDate(d.donatedAt)}</td>
-                            <td>{d.bloodType}</td>
-                            <td>{d.facilityName || "—"}</td>
-                            <td>{d.status}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
+                    <div>
+                      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-(--ink-muted)">
+                        Donation history
+                      </h3>
+                      {donationHistory.length === 0 ? (
+                        <p className="text-(--ink-muted)">No donations yet.</p>
+                      ) : (
+                        <div className="overflow-x-auto rounded border border-(--border)">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Date</th>
+                                <th>Blood</th>
+                                <th>Facility</th>
+                                <th>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {donationHistory.map((d) => (
+                                <tr key={d.id}>
+                                  <td>{formatDate(d.donatedAt)}</td>
+                                  <td>{d.bloodType}</td>
+                                  <td>{d.facilityName || "—"}</td>
+                                  <td>{d.status}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
 
-              <div>
-                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-(--ink-muted)">
-                  Push tokens
-                </h3>
-                {pushTokens.length === 0 ? (
-                  <p className="text-(--ink-muted)">No linked tokens.</p>
-                ) : (
-                  <ul className="space-y-1">
-                    {pushTokens.map((t) => (
-                      <li
-                        key={t.id}
-                        className="rounded border border-(--border) bg-(--surface) px-3 py-2 font-mono text-xs"
+                    <div>
+                      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-(--ink-muted)">
+                        Push tokens
+                      </h3>
+                      {pushTokens.length === 0 ? (
+                        <p className="text-(--ink-muted)">No linked tokens.</p>
+                      ) : (
+                        <ul className="space-y-1">
+                          {pushTokens.map((t) => (
+                            <li
+                              key={t.id}
+                              className="rounded border border-(--border) bg-(--surface) px-3 py-2 font-mono text-xs"
+                            >
+                              {t.platform ? `${t.platform}: ` : ""}
+                              {t.token.slice(0, 24)}…
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-2 border-t border-(--border) pt-4 sm:flex-row sm:flex-wrap">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="w-full sm:w-auto"
+                        onClick={() => {
+                          updateForm.reset({
+                            firstname: user.firstname,
+                            lastname: user.lastname,
+                            phonenumber: user.phonenumber ?? "",
+                            dateOfBirth: user.dateOfBirth ?? "",
+                          });
+                          setPanel({ type: "edit", user });
+                        }}
                       >
-                        {t.platform ? `${t.platform}: ` : ""}
-                        {t.token.slice(0, 24)}…
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-2 border-t border-(--border) pt-4 sm:flex-row sm:flex-wrap">
-                {!user.ninVerified ? (
-                  <Button
-                    size="sm"
-                    className="w-full sm:w-auto"
-                    disabled={verifyMutation.isPending}
-                    onClick={() => verifyMutation.mutate(user.id)}
-                  >
-                    Force verify
-                  </Button>
-                ) : null}
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="w-full sm:w-auto"
-                  disabled={resetPasswordMutation.isPending}
-                  onClick={() => resetPasswordMutation.mutate(user.id)}
-                >
-                  {resetPasswordMutation.isPending
-                    ? "Sending…"
-                    : "Reset password"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="w-full sm:w-auto"
-                  onClick={() => {
-                    mergeForm.reset({ targetUserId: "", reason: "" });
-                    setPanel({
-                      type: "merge",
-                      user: user as unknown as AdminUserListItem,
-                    });
-                  }}
-                >
-                  Merge duplicate
-                </Button>
-                {user.status === "suspended" ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="w-full sm:w-auto"
-                    disabled={reactivateMutation.isPending}
-                    onClick={() => reactivateMutation.mutate(user.id)}
-                  >
-                    Reactivate
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    className="w-full sm:w-auto"
-                    onClick={() => {
-                      suspendForm.reset({ reason: "" });
-                      setPanel({
-                        type: "suspend",
-                        user: user as unknown as AdminUserListItem,
-                      });
-                    }}
-                  >
-                    Suspend
-                  </Button>
-                )}
-              </div>
-              {resetPasswordMutation.isSuccess ? (
-                <p className="text-sm text-emerald-700">
-                  Password reset email queued.
-                </p>
-              ) : null}
-              {resetPasswordMutation.error instanceof ApiRequestError ? (
-                <p className="text-sm text-(--danger)">
-                  {resetPasswordMutation.error.message}
-                </p>
-              ) : null}
+                        Edit profile
+                      </Button>
+                      {!user.emailVerified ? (
+                        <Button
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          disabled={verifyMutation.isPending}
+                          onClick={() =>
+                            verifyMutation.mutate({
+                              id: user.id,
+                              payload: { emailVerified: true },
+                            })
+                          }
+                        >
+                          Force-verify email
+                        </Button>
+                      ) : null}
+                      {!user.ninVerified ? (
+                        <Button
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          disabled={verifyMutation.isPending}
+                          onClick={() =>
+                            verifyMutation.mutate({
+                              id: user.id,
+                              payload: {
+                                nationalIdentificationNumberVerified: true,
+                              },
+                            })
+                          }
+                        >
+                          Force-verify NIN
+                        </Button>
+                      ) : null}
+                      {canGrantDonorRetry(user) ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="w-full sm:w-auto"
+                          disabled={grantRetryMutation.isPending}
+                          onClick={() => grantRetryMutation.mutate(user.id)}
+                        >
+                          {grantRetryMutation.isPending
+                            ? "Granting…"
+                            : "Grant activation attempt"}
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="w-full sm:w-auto"
+                        disabled={resetPasswordMutation.isPending}
+                        onClick={() => resetPasswordMutation.mutate(user.id)}
+                      >
+                        {resetPasswordMutation.isPending
+                          ? "Sending…"
+                          : "Reset password"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="w-full sm:w-auto"
+                        onClick={() => {
+                          mergeForm.reset({ targetId: "", reason: "" });
+                          setPanel({
+                            type: "merge",
+                            user: user as unknown as AdminUserListItem,
+                          });
+                        }}
+                      >
+                        Merge duplicate
+                      </Button>
+                      {user.status === "suspended" ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="w-full sm:w-auto"
+                          disabled={reactivateMutation.isPending}
+                          onClick={() => reactivateMutation.mutate(user.id)}
+                        >
+                          Reactivate
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          className="w-full sm:w-auto"
+                          onClick={() => {
+                            suspendForm.reset({ reason: "" });
+                            setPanel({
+                              type: "suspend",
+                              user: user as unknown as AdminUserListItem,
+                            });
+                          }}
+                        >
+                          Suspend
+                        </Button>
+                      )}
+                    </div>
+                    {resetPasswordMutation.isSuccess ? (
+                      <p className="text-sm text-emerald-700">
+                        Password reset email queued.
+                      </p>
+                    ) : null}
+                    {resetPasswordMutation.error instanceof ApiRequestError ? (
+                      <p className="text-sm text-(--danger)">
+                        {resetPasswordMutation.error.message}
+                      </p>
+                    ) : null}
                   </>
                 );
               })()}
             </div>
           ) : null}
+        </Modal>
+      ) : null}
+
+      {panel?.type === "edit" ? (
+        <Modal title="Edit profile" onClose={closeActionPanel}>
+          <form
+            className="space-y-4"
+            onSubmit={updateForm.handleSubmit((values) =>
+              updateMutation.mutate({ id: panel.user.id, values }),
+            )}
+          >
+            <div>
+              <Label htmlFor="edit-firstname">First name</Label>
+              <Input
+                id="edit-firstname"
+                {...updateForm.register("firstname")}
+              />
+              {updateForm.formState.errors.firstname ? (
+                <p className="mt-1 text-xs text-(--danger)">
+                  {updateForm.formState.errors.firstname.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <Label htmlFor="edit-lastname">Last name</Label>
+              <Input id="edit-lastname" {...updateForm.register("lastname")} />
+              {updateForm.formState.errors.lastname ? (
+                <p className="mt-1 text-xs text-(--danger)">
+                  {updateForm.formState.errors.lastname.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                {...updateForm.register("phonenumber")}
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-dob">Date of birth</Label>
+              <Input
+                id="edit-dob"
+                type="date"
+                {...updateForm.register("dateOfBirth")}
+              />
+            </div>
+            {updateMutation.error instanceof ApiRequestError ? (
+              <p className="text-sm text-(--danger)">
+                {updateMutation.error.message}
+              </p>
+            ) : null}
+            <ModalActions
+              onCancel={closeActionPanel}
+              pending={updateMutation.isPending}
+              label="Save"
+            />
+          </form>
         </Modal>
       ) : null}
 
@@ -608,10 +747,10 @@ export function UsersTable() {
           >
             <div>
               <Label htmlFor="target-id">Target user ID</Label>
-              <Input id="target-id" {...mergeForm.register("targetUserId")} />
-              {mergeForm.formState.errors.targetUserId ? (
+              <Input id="target-id" {...mergeForm.register("targetId")} />
+              {mergeForm.formState.errors.targetId ? (
                 <p className="mt-1 text-xs text-(--danger)">
-                  {mergeForm.formState.errors.targetUserId.message}
+                  {mergeForm.formState.errors.targetId.message}
                 </p>
               ) : null}
             </div>

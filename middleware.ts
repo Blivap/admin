@@ -31,9 +31,10 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Gate page routes only. Do not run on /admin/* — those are proxied API
-     * calls (rewrites). Gating them caused POST /admin/auth/login → 307 /login.
+     * Gate page routes only. Do not run on /admin/* or /api/* — those are
+     * proxied API calls (rewrites). Gating them caused POST /admin/auth/login
+     * → 307 /login (and would serve the Facilities page for GET /hospitals).
      */
-    "/((?!_next/static|_next/image|favicon.ico|admin/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|admin/|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
