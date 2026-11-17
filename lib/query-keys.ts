@@ -4,6 +4,7 @@ import type {
   HospitalsListParams,
   NotificationsListParams,
   RequestsListParams,
+  SupportTicketsListParams,
   UsersListParams,
   VerificationsListParams,
 } from "@/types";
@@ -62,5 +63,12 @@ export const queryKeys = {
   audit: {
     all: ["audit"] as const,
     list: (params: AuditLogsListParams) => ["audit", "list", params] as const,
+  },
+  support: {
+    all: ["support"] as const,
+    list: (params: SupportTicketsListParams) =>
+      ["support", "list", params] as const,
+    detail: (id: string) => ["support", "detail", id] as const,
+    messages: (id: string) => ["support", "messages", id] as const,
   },
 };
