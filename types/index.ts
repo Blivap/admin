@@ -72,7 +72,10 @@ export type AuditActionType =
   | "settings.update"
   | "cms.update"
   | "auth.login"
-  | "auth.logout";
+  | "auth.logout"
+  | "support.ticket_claimed"
+  | "support.ticket_status_updated"
+  | "support.ticket_notified";
 
 export interface PaginatedMeta {
   page: number;
@@ -629,6 +632,94 @@ export interface CreateHospitalPayload {
 
 export interface UpdateBloodCollectionAuthorizationPayload {
   authorizedBloodCollection: boolean;
+}
+
+/* ── Support tickets (Nest /admin/support) ─────────────────────────── */
+
+export type SupportTicketStatus =
+  | "open"
+  | "assigned"
+  | "in_progress"
+  | "waiting_on_user"
+  | "waiting_on_internal"
+  | "escalated"
+  | "resolved"
+  | "closed"
+  | "cancelled";
+
+export type SupportTicketPriority = "low" | "normal" | "high" | "urgent";
+
+export type SupportMessageSender = "user" | "bot" | "agent" | "system";
+
+/** Why the ticket was opened (escalation reason), not a workflow status. */
+export type SupportTicketSource =
+  | "human_requested"
+  | "low_confidence"
+  | "no_knowledge"
+  | "knowledge_requires_human"
+  | "security_report"
+  | "unauthorized_charge"
+  | "complaint"
+  | "emergency"
+  | "medical_emergency"
+  | "action_failed"
+  | "tool_loop_limit"
+  | "prompt_injection"
+  | "follow_up_unresolved"
+  | "repeated_question"
+  | "frustrated_unresolved"
+  | "repeated_failure"
+  | "admin_created"
+  | "other";
+
+export interface AdminSupportTicket {
+  id: string;
+  ticketNumber: string;
+  conversationId: string;
+  userId?: string | null;
+  category: string;
+  subject: string;
+  description: string;
+  priority: SupportTicketPriority;
+  status: SupportTicketStatus;
+  source?: SupportTicketSource | string | null;
+  assignedAgentId?: string | null;
+  resolution?: string | null;
+  escalationReason?: string | null;
+  cancelReason?: string | null;
+  statusChangedAt?: string | null;
+  waitingSince?: string | null;
+  firstResponseAt?: string | null;
+  breachedAt?: string | null;
+  resolvedAt?: string | null;
+  closedAt?: string | null;
+  cancelledAt?: string | null;
+  reopenedAt?: string | null;
+  reopenCount?: number;
+  waitingDurationMs?: number;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface SupportTicketMessage {
+  id: string;
+  senderType: SupportMessageSender | string;
+  content: string;
+  messageType?: string;
+  createdAt?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SupportTicketsListParams extends ListParams {
+  status?: SupportTicketStatus | "";
+}
+
+export interface UpdateSupportTicketStatusPayload {
+  status: SupportTicketStatus;
+  resolution?: string;
+  cancelReason?: string;
+  assignedAgentId?: string;
+  note?: string;
 }
 
 /* ── Audit Log ────────────────────────────────────────────────────── */
