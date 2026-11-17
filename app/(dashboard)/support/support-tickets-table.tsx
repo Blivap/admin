@@ -122,7 +122,6 @@ export function SupportTicketsTable() {
   const closePanel = useCallback(() => setPanel(null), []);
 
   const {
-    params,
     setParams,
     draftStatus,
     setDraftStatus,
